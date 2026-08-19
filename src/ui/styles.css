@@ -389,6 +389,33 @@ button {
   color: var(--danger);
 }
 
+.howto-party-stage {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--stone-700);
+  background: #07060a;
+}
+
+.howto-party-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.howto-party-labels {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin-top: 0.4rem;
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 .howto-list {
   margin: 0;
   padding-left: 1.1rem;
@@ -888,6 +915,40 @@ button {
 }
 
 .hud-pause-btn:active {
+  transform: translateY(2px);
+}
+
+.hud-btn-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.hud-camera-btn {
+  appearance: none;
+  border: 1px solid var(--stone-500);
+  background: rgba(14, 12, 18, 0.72);
+  color: var(--muted);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-end;
+}
+
+.hud-camera-btn.is-active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.hud-camera-btn:active {
   transform: translateY(2px);
 }
 

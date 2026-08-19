@@ -10,7 +10,15 @@
  * frustum covers the maze rectangle plus margin.
  */
 import * as THREE from 'three';
-import { COLS, ROWS, CAMERA_PITCH_DEG, CAMERA_MARGIN_TILES, PALETTE } from '../config.js';
+import {
+  COLS,
+  ROWS,
+  CAMERA_PITCH_DEG,
+  CAMERA_MARGIN_TILES,
+  CLOSE_CAMERA_PITCH_DEG,
+  CLOSE_CAMERA_HALF_TILES,
+  PALETTE,
+} from '../config.js';
 
 const FOV_DEG = 50;
 const SHAKE_DURATION = 0.3;
@@ -57,7 +65,10 @@ export function createScene(canvas) {
 
   const camera = new THREE.PerspectiveCamera(FOV_DEG, 1, 0.5, 200);
   const basePos = new THREE.Vector3();
-  const theta = THREE.MathUtils.degToRad(CAMERA_PITCH_DEG);
+  const lookTarget = new THREE.Vector3();
+  const followTarget = new THREE.Vector3();
+  const boardTheta = THREE.MathUtils.degToRad(CAMERA_PITCH_DEG);
+  const closeTheta = THREE.MathUtils.degToRad(CLOSE_CAMERA_PITCH_DEG);
   const halfFovV = THREE.MathUtils.degToRad(FOV_DEG / 2);
 
   // Cheap moody lighting: a dim sky/ground fill plus one directional light
@@ -66,6 +77,32 @@ export function createScene(canvas) {
   const sun = new THREE.DirectionalLight(0xfff2d8, 2.0);
   sun.position.set(-6, 14, 8);
   scene.add(hemi, sun);
+
+  // 'board' (default) fits the whole maze in frame at the real 12° pitch —
+  // that's what makes screen wrap read. 'close' is the optional follow
+  // camera: a steeper, closer angle scoped to CLOSE_CAMERA_HALF_TILES around
+  // the cube instead of the whole board (see config.js's comment on why the
+  // pitch differs). Both distances are solved with the same
+  // fitCameraDistance() formula, just fed different half-extents/pitch.
+  let mode = 'board';
+  let boardR = 0;
+  let closeR = 0;
+
+  function currentTheta() {
+    return mode === 'close' ? closeTheta : boardTheta;
+  }
+  function currentR() {
+    return mode === 'close' ? closeR : boardR;
+  }
+
+  function applySizing() {
+    const R = currentR();
+    camera.near = Math.max(0.5, R * 0.05);
+    camera.far = R * 3 + 40;
+    camera.updateProjectionMatrix();
+    scene.fog.near = R * 0.9;
+    scene.fog.far = R * 2.4;
+  }
 
   function resize() {
     const w = canvas.clientWidth || window.innerWidth;
@@ -77,22 +114,30 @@ export function createScene(canvas) {
     const halfH = ROWS / 2 + CAMERA_MARGIN_TILES;
     // Tiny safety epsilon: keeps the fit from clipping the board edge to
     // floating-point rounding at extreme aspect ratios.
-    const R = fitCameraDistance(halfW, halfH, theta, halfFovV, aspect) * 1.01;
+    boardR = fitCameraDistance(halfW, halfH, boardTheta, halfFovV, aspect) * 1.01;
+    closeR =
+      fitCameraDistance(
+        CLOSE_CAMERA_HALF_TILES.w,
+        CLOSE_CAMERA_HALF_TILES.h,
+        closeTheta,
+        halfFovV,
+        aspect,
+      ) * 1.01;
 
-    basePos.set(0, R * Math.cos(theta), R * Math.sin(theta));
-    camera.position.copy(basePos);
-    camera.lookAt(0, 0, 0);
-    camera.near = Math.max(0.5, R * 0.05);
-    camera.far = R * 3 + 40;
-    camera.updateProjectionMatrix();
-
-    scene.fog.near = R * 0.9;
-    scene.fog.far = R * 2.4;
-
+    applySizing();
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     renderer.setSize(w, h, false);
   }
   resize();
+
+  /** Switch between the full-board camera and the close-follow camera.
+   *  Takes effect immediately (not just on the next resize/update). */
+  function setCameraMode(next) {
+    if (next !== 'board' && next !== 'close') return;
+    if (mode === next) return;
+    mode = next;
+    applySizing();
+  }
 
   // Shake state: decaying jitter applied on top of basePos, no per-frame
   // allocation (reuses a single scratch vector).
@@ -105,23 +150,36 @@ export function createScene(canvas) {
     shakeTime = SHAKE_DURATION;
   }
 
-  function update(dt) {
-    if (shakeTime <= 0) return;
-    shakeTime = Math.max(0, shakeTime - dt);
-    const falloff = shakeTime / SHAKE_DURATION;
-    const s = shakeMag * falloff;
-    jitter.set(
-      (Math.random() - 0.5) * s,
-      (Math.random() - 0.5) * s * 0.6,
-      (Math.random() - 0.5) * s,
-    );
-    camera.position.copy(basePos).add(jitter);
-    camera.lookAt(0, 0, 0);
-    if (shakeTime <= 0) {
-      shakeMag = 0;
-      camera.position.copy(basePos);
-      camera.lookAt(0, 0, 0);
+  /** followX/followZ are only read in 'close' mode — harmless to pass every
+   *  frame regardless of mode. */
+  function update(dt, followX = 0, followZ = 0) {
+    followTarget.set(followX, 0, followZ);
+    const theta = currentTheta();
+    const R = currentR();
+
+    if (mode === 'close') {
+      basePos.set(followTarget.x, R * Math.cos(theta), followTarget.z + R * Math.sin(theta));
+      lookTarget.copy(followTarget);
+    } else {
+      basePos.set(0, R * Math.cos(theta), R * Math.sin(theta));
+      lookTarget.set(0, 0, 0);
     }
+
+    if (shakeTime > 0) {
+      shakeTime = Math.max(0, shakeTime - dt);
+      const falloff = shakeTime / SHAKE_DURATION;
+      const s = shakeMag * falloff;
+      jitter.set(
+        (Math.random() - 0.5) * s,
+        (Math.random() - 0.5) * s * 0.6,
+        (Math.random() - 0.5) * s,
+      );
+      camera.position.copy(basePos).add(jitter);
+      if (shakeTime <= 0) shakeMag = 0;
+    } else {
+      camera.position.copy(basePos);
+    }
+    camera.lookAt(lookTarget);
   }
 
   function render() {
@@ -132,5 +190,5 @@ export function createScene(canvas) {
     renderer.dispose();
   }
 
-  return { renderer, scene, camera, resize, render, shake, update, dispose };
+  return { renderer, scene, camera, resize, render, shake, update, setCameraMode, dispose };
 }

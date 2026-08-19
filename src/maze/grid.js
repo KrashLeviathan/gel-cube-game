@@ -101,6 +101,35 @@ export function tileDistance(aCol, aRow, bCol, bRow) {
   return Math.abs(deltaCol(aCol, bCol)) + Math.abs(bRow - aRow);
 }
 
+/**
+ * Straight-line-of-sight tile distance between two tiles, or -1 if they
+ * don't share a row/column or something unwalkable stands between them.
+ * "Down a hallway" only — no diagonal, no path-around-corners (that's what
+ * distanceField() in pathfinding.js is for). Column axis is wrap-aware, same
+ * as the rest of this module, so a straight tunnel row still counts.
+ * @param {'cube'|'adventurer'} who
+ */
+export function losDistance(maze, aCol, aRow, bCol, bRow, who) {
+  if (aRow === bRow) {
+    const d = deltaCol(aCol, bCol);
+    const dist = Math.abs(d);
+    const step = d > 0 ? 1 : -1;
+    for (let i = 1; i < dist; i++) {
+      if (!isWalkable(maze, wrapCol(aCol + step * i), aRow, who)) return -1;
+    }
+    return dist;
+  }
+  if (aCol === bCol) {
+    const dist = Math.abs(bRow - aRow);
+    const step = bRow > aRow ? 1 : -1;
+    for (let i = 1; i < dist; i++) {
+      if (!isWalkable(maze, aCol, aRow + step * i, who)) return -1;
+    }
+    return dist;
+  }
+  return -1;
+}
+
 /** Iterate the four neighbours of a tile. Calls fn(col, row, dirIndex). */
 export function forEachNeighbor(col, row, fn) {
   fn(wrapCol(col), row - 1, 0);
