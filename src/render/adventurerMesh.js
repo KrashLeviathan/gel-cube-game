@@ -2,6 +2,20 @@
  * WS-E2 — adventurer figures: chunky low-poly Pac-Men seen from ~12deg off
  * top-down. See docs/SPEC.md §5 for the AdventurerView contract.
  *
+ * `buildAdventurerMesh(scene, archetype, opts)` — opts (both optional):
+ *   {
+ *     colorTier: 'baseline'|'bright',  // difficulty-driven palette; see
+ *                                       // levelParams().advColorTier. Rogue's
+ *                                       // 'bright' tier is a hue swap (slate
+ *                                       // grey), not just a lightness lift.
+ *     haloMode: 'none'|'flash'|'persist', // see levelParams().haloMode. The
+ *                                       // ground halo flashes 3x at
+ *                                       // construction (= level start, since
+ *                                       // levels.js always builds a fresh
+ *                                       // view rather than reusing one) then
+ *                                       // either hides or stays lit.
+ *   }
+ *
  * `update(dt, opts)` expects (all optional, sane defaults applied):
  *   {
  *     moving: boolean,             // is the adventurer currently translating
@@ -13,6 +27,11 @@
  *     dir: number,                 // DIR_UP/RIGHT/DOWN/LEFT (config.js) or
  *                                   // DIR_NONE(-1)/undefined to hold facing.
  *     packFullness: number,        // 0..1, drives the loot-sack swell.
+ *     spotted: boolean,            // adv.spotted from adventurer.js — a rising
+ *                                   // edge (false->true) pops the overhead "!"
+ *                                   // notice tell. Purely edge-triggered: no
+ *                                   // re-fire while sight is held, no cooldown
+ *                                   // needed since losing sight re-arms it.
  *   }
  *
  * `group` (the returned view's root) is positioned by the CALLER every frame
@@ -20,15 +39,19 @@
  * world x/z). This module never touches `group.position` or `group.rotation`
  * itself — all animation (bob, lean, sway, facing, dissolve) happens on an
  * internal child pivot, so callers are free to drive the group's transform
- * without fighting the animation system.
+ * without fighting the animation system. The halo and notice sprite are
+ * children of `group` directly (not the pivot) — see their construction below
+ * for why.
  *
- * Archetype materials are cached and refcounted at module scope (see
- * `acquireMaterials`/`releaseMaterials` and `acquireSack`/`releaseSack`) so
- * multiple concurrent adventurers of the same archetype share GPU state;
- * only geometry (a few hundred triangles, built fresh per call) is unique
- * per instance, which is what makes the flesh-fades-first / gear-lingers
- * dissolve timing possible without per-instance material clones (see the
- * `fade` vertex attribute + shader injection below).
+ * Archetype materials are cached and refcounted at module scope, keyed by
+ * `${archetype}:${colorTier}` (see `acquireMaterials`/`releaseMaterials`),
+ * same for the sack/halo/notice-icon shared geometry+texture (see
+ * `acquireSack`/`acquireHalo`/`acquireNoticeTexture` and their `release*`
+ * counterparts) — multiple concurrent adventurers share all of that GPU
+ * state; only geometry (a few hundred triangles, built fresh per call) is
+ * unique per instance, which is what makes the flesh-fades-first /
+ * gear-lingers dissolve timing possible without per-instance material clones
+ * (see the `fade` vertex attribute + shader injection below).
  */
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -44,8 +67,32 @@ const BOB_AMP = R * 0.22;
 const PANIC_SWAY = 0.4;
 const IDLE_SWAY = 0.09;
 const HUNT_LEAN = 0.42;
-const SACK_MIN = 0.35;
-const SACK_MAX = 1.55;
+// Bumped up from the original 0.35 / 1.55 — playtest feedback was that a
+// lightly-loaded pack read as a barely-there bump and a full one wasn't
+// dramatic enough at gameplay zoom. See the adventurer legibility study.
+const SACK_MIN = 0.6;
+const SACK_MAX = 2.2;
+
+// Overhead "notice" tell — pops when adv.spotted (see adventurer.js's
+// losDistance/NOTICE_SIGHT_RADIUS check) flips false->true. Offset north
+// (-Z, unrotated — screen "up" in the near-top-down camera regardless of
+// which way the adventurer is facing) as well as up: a purely vertical
+// offset visually collapses into the character's own silhouette from
+// top-down and was unreadable in the legibility study.
+const NOTICE_SIZE = R * 1.1;
+const NOTICE_OFFSET_Y = R * 2.3;
+const NOTICE_OFFSET_Z = -R * 1.5;
+const NOTICE_POP_TIME = 0.16;
+const NOTICE_HOLD_TIME = 0.55;
+const NOTICE_TOTAL_TIME = 0.9;
+
+// Ground halo — flashes at level start (haloMode !== 'none'), then either
+// persists (Novice) or hides (Veteran); see buildLevel()/levelParams().
+const HALO_RADIUS = R * 2.1;
+const HALO_FLASH_TIME = 1.5;
+const HALO_FLASH_PULSES = 3;
+const HALO_FLASH_PEAK = 0.85;
+const HALO_PERSIST_OPACITY = 0.5;
 
 // ---------------------------------------------------------------------------
 // small local helpers (mirrors the pattern used in dungeonMesh.js/torches.js)
@@ -134,11 +181,27 @@ function angleForDir(dir) {
 // archetype palettes
 // ---------------------------------------------------------------------------
 
-const ARCHETYPE_COLORS = {
+const ARCHETYPE_COLORS_BASELINE = {
   fighter: { body: 0x8a231d, bodyDk: 0x5c1712, gear: 0x9aa4ad, gearDk: 0x62696f, glow: 0xffb199 },
   rogue: { body: 0x1c4a2a, bodyDk: 0x102e19, gear: 0x7d8790, gearDk: 0x454c51, glow: 0x9dffb8 },
   wizard: { body: 0x5836ad, bodyDk: 0x38226e, gear: 0x6a4a2c, gearDk: 0x442f1c, glow: 0x9fd8ff },
   cleric: { body: 0xf0e8cf, bodyDk: 0xcfc19a, gear: 0xd8b23a, gearDk: 0xa88626, glow: 0xfff2b3 },
+};
+
+// Novice difficulty's friendlier palette: lifted lightness/saturation on
+// fighter/wizard/cleric. Rogue is a deliberate hue swap rather than a lift —
+// slate grey instead of green, with a cool pale glow to match — not a
+// brightness tweak, per direct art-direction call.
+const ARCHETYPE_COLORS_BRIGHT = {
+  fighter: { body: 0xc1271e, bodyDk: 0x921d15, gear: 0xb6c0c9, gearDk: 0x778692, glow: 0xffb199 },
+  rogue: { body: 0x5c646e, bodyDk: 0x3d434a, gear: 0x9299a1, gearDk: 0x5d6369, glow: 0xcfeaff },
+  wizard: { body: 0x7049d2, bodyDk: 0x4a27a1, gear: 0x986536, gearDk: 0x704a28, glow: 0x9fd8ff },
+  cleric: { body: 0xf5f0de, bodyDk: 0xddd1b0, gear: 0xe5c256, gearDk: 0xd1a426, glow: 0xfff2b3 },
+};
+
+const ARCHETYPE_COLOR_TIERS = {
+  baseline: ARCHETYPE_COLORS_BASELINE,
+  bright: ARCHETYPE_COLORS_BRIGHT,
 };
 
 const SKIN = 0xd9b48f;
@@ -331,8 +394,9 @@ const ARCHETYPE_BUILDERS = {
 
 const materialCache = new Map();
 
-function acquireMaterials(archetype) {
-  let entry = materialCache.get(archetype);
+function acquireMaterials(archetype, tier) {
+  const key = `${archetype}:${tier}`;
+  let entry = materialCache.get(key);
   if (!entry) {
     const bodyMat = withFadeShader(
       new THREE.MeshStandardMaterial({
@@ -350,28 +414,30 @@ function acquireMaterials(archetype) {
         transparent: true,
       }),
     );
-    const c = ARCHETYPE_COLORS[archetype] || ARCHETYPE_COLORS.fighter;
+    const palette = ARCHETYPE_COLOR_TIERS[tier] || ARCHETYPE_COLORS_BASELINE;
+    const c = palette[archetype] || palette.fighter;
     const glowMat = new THREE.MeshBasicMaterial({
       color: c.glow,
       transparent: true,
       toneMapped: false,
     });
     entry = { bodyMat, gearMat, glowMat, refCount: 0 };
-    materialCache.set(archetype, entry);
+    materialCache.set(key, entry);
   }
   entry.refCount++;
   return entry;
 }
 
-function releaseMaterials(archetype) {
-  const entry = materialCache.get(archetype);
+function releaseMaterials(archetype, tier) {
+  const key = `${archetype}:${tier}`;
+  const entry = materialCache.get(key);
   if (!entry) return;
   entry.refCount--;
   if (entry.refCount <= 0) {
     entry.bodyMat.dispose();
     entry.gearMat.dispose();
     entry.glowMat.dispose();
-    materialCache.delete(archetype);
+    materialCache.delete(key);
   }
 }
 
@@ -402,25 +468,118 @@ function releaseSack() {
   }
 }
 
+/** Soft radial-gradient disc — opaque-ish center fading to nothing at the
+ *  rim, drawn once into a canvas and reused as every halo's alpha map. */
+function createHaloTexture() {
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  grad.addColorStop(0, 'rgba(255,255,255,0.9)');
+  grad.addColorStop(0.5, 'rgba(255,255,255,0.45)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+let haloShared = null;
+function acquireHalo() {
+  if (!haloShared) {
+    const geo = new THREE.CircleGeometry(HALO_RADIUS, 32);
+    geo.rotateX(-Math.PI / 2);
+    haloShared = { geo, texture: createHaloTexture(), refCount: 0 };
+  }
+  haloShared.refCount++;
+  return haloShared;
+}
+
+function releaseHalo() {
+  if (!haloShared) return;
+  haloShared.refCount--;
+  if (haloShared.refCount <= 0) {
+    haloShared.geo.dispose();
+    haloShared.texture.dispose();
+    haloShared = null;
+  }
+}
+
+/** A stubby capsule + dot "!" — the only overhead-notice shape kept from the
+ *  legibility study (exclamation read best; sparkle/eye didn't earn a slot). */
+function createNoticeTexture() {
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.save();
+  ctx.shadowColor = 'rgba(255,170,80,0.95)';
+  ctx.shadowBlur = 20;
+  const grad = ctx.createLinearGradient(0, 16, 0, 112);
+  grad.addColorStop(0, '#fff2c4');
+  grad.addColorStop(1, '#ff9a3c');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.roundRect(size / 2 - 11, 18, 22, 58, 11);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(size / 2, 100, 12, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+let noticeShared = null;
+function acquireNoticeTexture() {
+  if (!noticeShared) noticeShared = { texture: createNoticeTexture(), refCount: 0 };
+  noticeShared.refCount++;
+  return noticeShared.texture;
+}
+
+function releaseNoticeTexture() {
+  if (!noticeShared) return;
+  noticeShared.refCount--;
+  if (noticeShared.refCount <= 0) {
+    noticeShared.texture.dispose();
+    noticeShared = null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // public factory
 // ---------------------------------------------------------------------------
 
-export function buildAdventurerMesh(scene, archetype) {
+export function buildAdventurerMesh(scene, archetype, opts = {}) {
   const type = ARCHETYPE_BUILDERS[archetype] ? archetype : 'fighter';
-  const mats = acquireMaterials(type);
+  const tier = ARCHETYPE_COLOR_TIERS[opts.colorTier] ? opts.colorTier : 'baseline';
+  const haloMode =
+    opts.haloMode === 'persist' || opts.haloMode === 'flash' ? opts.haloMode : 'none';
+  const mats = acquireMaterials(type, tier);
   const sack = acquireSack();
+  const halo = haloMode !== 'none' ? acquireHalo() : null;
+  const noticeTexture = acquireNoticeTexture();
 
   const group = new THREE.Group();
   group.name = `adventurer:${type}`;
   scene.add(group);
 
   // All animation lives on this child pivot — `group` itself is left alone
-  // for the caller to position every frame.
+  // for the caller to position every frame. The halo and notice icon are
+  // deliberately children of `group` instead: the halo must stay flat on the
+  // floor through the pivot's bob/tilt, and the notice icon's "north" offset
+  // must stay screen-fixed regardless of which way the pivot is facing.
   const pivot = new THREE.Group();
   group.add(pivot);
 
-  const built = ARCHETYPE_BUILDERS[type](ARCHETYPE_COLORS[type]);
+  const built = ARCHETYPE_BUILDERS[type](ARCHETYPE_COLOR_TIERS[tier][type]);
   const bodyGeo = mergeAndDispose(built.body);
   const gearGeo = mergeAndDispose(built.gear);
   const glowGeo = built.glow.length ? mergeAndDispose(built.glow) : null;
@@ -451,6 +610,34 @@ export function buildAdventurerMesh(scene, archetype) {
   shineMesh.visible = false;
   pivot.add(shineMesh);
 
+  let haloMesh = null;
+  let haloMat = null;
+  if (halo) {
+    haloMat = new THREE.MeshBasicMaterial({
+      color: 0xfff0d0,
+      map: halo.texture,
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    haloMesh = new THREE.Mesh(halo.geo, haloMat);
+    haloMesh.position.y = 0.012;
+    haloMesh.visible = false;
+    group.add(haloMesh);
+  }
+
+  const noticeMat = new THREE.SpriteMaterial({
+    map: noticeTexture,
+    transparent: true,
+    depthWrite: false,
+    toneMapped: false,
+  });
+  const noticeSprite = new THREE.Sprite(noticeMat);
+  noticeSprite.scale.set(0, 0, 0);
+  noticeSprite.position.set(0, NOTICE_OFFSET_Y, NOTICE_OFFSET_Z);
+  group.add(noticeSprite);
+
   const s = {
     t: 0,
     walkPhase: 0,
@@ -460,6 +647,12 @@ export function buildAdventurerMesh(scene, archetype) {
     dissolving: false,
     dissolved: false,
     dissolveT: 0,
+    // 'flashing' -> 'persist'|'hidden'|'off' (off = haloMode 'none', never shown)
+    haloPhase: haloMode === 'none' ? 'off' : 'flashing',
+    haloT: 0,
+    wasSpotted: false,
+    noticeActive: false,
+    noticeT: 0,
   };
 
   function stepDissolve(dt) {
@@ -544,6 +737,69 @@ export function buildAdventurerMesh(scene, archetype) {
       const base = hunting ? 1.5 : 1;
       glowMesh.scale.setScalar(base * (1 + 0.18 * Math.sin(s.t * 4 + 1.7)));
     }
+
+    stepHalo(dt);
+    stepNotice(dt, !!opts.spotted);
+  }
+
+  function stepHalo(dt) {
+    if (s.haloPhase === 'off' || s.haloPhase === 'hidden' || s.haloPhase === 'persist') return;
+    s.haloT += dt;
+    if (s.haloT >= HALO_FLASH_TIME) {
+      if (haloMode === 'persist') {
+        haloMat.opacity = HALO_PERSIST_OPACITY;
+        s.haloPhase = 'persist';
+      } else {
+        haloMesh.visible = false;
+        s.haloPhase = 'hidden';
+      }
+      return;
+    }
+    const cyclePos = (s.haloT / HALO_FLASH_TIME) * HALO_FLASH_PULSES;
+    const withinPulse = cyclePos % 1;
+    haloMesh.visible = true;
+    haloMat.opacity = Math.sin(withinPulse * Math.PI) * HALO_FLASH_PEAK;
+  }
+
+  // Edge-triggered off adv.spotted (see adventurer.js) rather than any state
+  // transition, so it fires the same "oh!" beat whether or not a fresh
+  // itemTaken/hunt flip happens to line up with the moment sight is gained.
+  function stepNotice(dt, spotted) {
+    if (spotted && !s.wasSpotted) {
+      s.noticeActive = true;
+      s.noticeT = 0;
+    }
+    s.wasSpotted = spotted;
+
+    if (!s.noticeActive) return;
+    s.noticeT += dt;
+    if (s.noticeT >= NOTICE_TOTAL_TIME) {
+      s.noticeActive = false;
+      noticeSprite.scale.set(0, 0, 0);
+      return;
+    }
+    let scale;
+    let opacity;
+    let rise = 0;
+    if (s.noticeT < NOTICE_POP_TIME) {
+      const p = THREE.MathUtils.smoothstep(s.noticeT, 0, NOTICE_POP_TIME);
+      scale =
+        p < 0.7
+          ? THREE.MathUtils.lerp(0, 1.2, p / 0.7)
+          : THREE.MathUtils.lerp(1.2, 1, (p - 0.7) / 0.3);
+      opacity = p;
+    } else if (s.noticeT < NOTICE_HOLD_TIME) {
+      scale = 1;
+      opacity = 1;
+    } else {
+      const p = THREE.MathUtils.smoothstep(s.noticeT, NOTICE_HOLD_TIME, NOTICE_TOTAL_TIME);
+      scale = THREE.MathUtils.lerp(1, 0.82, p);
+      opacity = 1 - p;
+      rise = p * R * 0.4;
+    }
+    noticeSprite.scale.set(NOTICE_SIZE * scale, NOTICE_SIZE * scale, 1);
+    noticeMat.opacity = opacity;
+    noticeSprite.position.y = NOTICE_OFFSET_Y + rise;
   }
 
   function playDissolve() {
@@ -572,6 +828,16 @@ export function buildAdventurerMesh(scene, archetype) {
     sackMesh.scale.setScalar(SACK_MIN);
     shineMesh.visible = false;
     if (glowMesh) glowMesh.scale.setScalar(1);
+    s.haloPhase = haloMode === 'none' ? 'off' : 'flashing';
+    s.haloT = 0;
+    if (haloMesh) {
+      haloMesh.visible = false;
+      haloMat.opacity = 0;
+    }
+    s.wasSpotted = false;
+    s.noticeActive = false;
+    s.noticeT = 0;
+    noticeSprite.scale.set(0, 0, 0);
   }
 
   function dispose() {
@@ -581,7 +847,11 @@ export function buildAdventurerMesh(scene, archetype) {
     if (glowGeo) glowGeo.dispose();
     sackGeo.dispose();
     shineGeo.dispose();
-    releaseMaterials(type);
+    if (haloMat) haloMat.dispose();
+    if (halo) releaseHalo();
+    noticeMat.dispose();
+    releaseNoticeTexture();
+    releaseMaterials(type, tier);
     releaseSack();
   }
 

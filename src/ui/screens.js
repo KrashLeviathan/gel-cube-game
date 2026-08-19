@@ -32,6 +32,7 @@ import { on, state, setScreen, patch, EVENTS } from '../state/store.js';
 import { DIFFICULTIES, OOZE_COLORS } from '../config.js';
 import { saveSettings, qualifies, saveScore } from '../state/storage.js';
 import { renderLeaderboard, promptInitials } from './leaderboard.js';
+import { mountArchetypeShowcase } from '../render/archetypeShowcase.js';
 import { VERSION } from '../version.js';
 
 const VERSION_BADGE_HTML = `<div class="version-badge">v${VERSION}</div>`;
@@ -172,6 +173,19 @@ export function createScreens(root, handlers = {}) {
         gelatinous cube in the lair, and they are the pellets.
       </p>
 
+      <div class="howto-block howto-party">
+        <h3 class="howto-heading">Meet the party</h3>
+        <div class="howto-party-stage">
+          <canvas class="howto-party-canvas"></canvas>
+        </div>
+        <div class="howto-party-labels">
+          <span>Fighter</span>
+          <span>Rogue</span>
+          <span>Wizard</span>
+          <span>Cleric</span>
+        </div>
+      </div>
+
       <div class="howto-block">
         <h3 class="howto-heading">Moving</h3>
         <ul class="howto-list">
@@ -236,9 +250,22 @@ export function createScreens(root, handlers = {}) {
   `;
   wrap.appendChild(howtoEl);
 
+  // The showcase owns a real WebGLRenderer — mount it only while the overlay
+  // is actually open (Home screen may never open this at all) and tear it
+  // down on close rather than leaving a second live renderer running behind
+  // the scenes for the rest of the session.
+  let partyShowcase = null;
   function setHowtoOpen(open) {
     howtoEl.classList.toggle('is-open', open);
-    if (open) howtoEl.querySelector('.howto-scroll').scrollTop = 0;
+    if (open) {
+      howtoEl.querySelector('.howto-scroll').scrollTop = 0;
+      if (!partyShowcase) {
+        partyShowcase = mountArchetypeShowcase(howtoEl.querySelector('.howto-party-canvas'));
+      }
+    } else if (partyShowcase) {
+      partyShowcase.dispose();
+      partyShowcase = null;
+    }
   }
 
   homeEl.querySelector('[data-action="howto"]').addEventListener('click', () => setHowtoOpen(true));

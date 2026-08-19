@@ -89,6 +89,7 @@ import {
   BANK_TIME,
   FLEE_RADIUS,
   ITEM_INTEREST_RADIUS,
+  NOTICE_SIGHT_RADIUS,
   HUNT_SPEED_MULT,
   FLEE_SPEED_MULT,
   DIFFICULTIES,
@@ -101,6 +102,7 @@ import {
   wrapCol,
   isWalkable,
   tileDistance,
+  losDistance,
 } from '../maze/grid.js';
 import { distanceField } from '../maze/pathfinding.js';
 
@@ -172,6 +174,11 @@ export function createAdventurer(maze, archetype, spawn, opts = {}) {
     pack: 0,
     alive: true,
     archetype,
+    // true while there's a clear straight line of sight to the cube within
+    // NOTICE_SIGHT_RADIUS — the render layer edge-triggers its overhead
+    // "notice" tell off this rather than off any state transition, so it
+    // fires the same way whether the adventurer is already hunting or not.
+    spotted: false,
 
     // --- private bookkeeping (not part of the documented surface) ---
     _spawn: { col: spawn.col, row: spawn.row },
@@ -350,6 +357,9 @@ function replan(adv, maze, ctx) {
   const cubeField = distanceField(maze, ctx.cube.col, ctx.cube.row, { who: WHO });
   adv._cubeField = cubeField;
   const cubeDist = cubeField[idx(adv.col, adv.row)];
+
+  const sightDist = losDistance(maze, adv.col, adv.row, ctx.cube.col, ctx.cube.row, WHO);
+  adv.spotted = sightDist >= 0 && sightDist <= NOTICE_SIGHT_RADIUS;
   const effectiveFleeRadius = FLEE_RADIUS * adv._arche.fleeRadiusMult;
   const enterThreat = cubeDist >= 0 && cubeDist <= effectiveFleeRadius;
   const exitThreat = cubeDist >= 0 && cubeDist <= effectiveFleeRadius + FLEE_EXIT_MARGIN;
@@ -730,6 +740,7 @@ function resetAdventurer(adv, newSpawn) {
   adv.state = 'collect';
   adv.pack = 0;
   adv.alive = true;
+  adv.spotted = false;
 
   adv._legProgress = 0;
   adv._planTimer = 0;

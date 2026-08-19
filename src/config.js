@@ -118,6 +118,11 @@ export const DIFFICULTIES = {
     magicItems: 2,
     lootGoalFraction: 0.65,
     scoreMult: 0.75,
+    // Easiest difficulty gets the friendliest read: lifted-lightness archetype
+    // colors, and each adventurer's ground halo flashes three times at level
+    // start then stays lit — a persistent tell for where everyone is.
+    advColorTier: 'bright',
+    haloMode: 'persist',
   },
   normal: {
     id: 'normal',
@@ -129,6 +134,10 @@ export const DIFFICULTIES = {
     magicItems: 3,
     lootGoalFraction: 0.6,
     scoreMult: 1.0,
+    // Shipping colors, and the halo only flashes at level start (a one-time
+    // "here's everyone" beat) before disappearing for the rest of the level.
+    advColorTier: 'baseline',
+    haloMode: 'flash',
   },
   hard: {
     id: 'hard',
@@ -140,6 +149,9 @@ export const DIFFICULTIES = {
     magicItems: 4,
     lootGoalFraction: 0.55,
     scoreMult: 1.5,
+    // No halo at all — the hardest difficulty gets no free positional tell.
+    advColorTier: 'baseline',
+    haloMode: 'none',
   },
 };
 
@@ -177,6 +189,10 @@ export const DRIED_WARNING_TIME = 2.5;
 export const FLEE_RADIUS = 6;
 /** Path distance at which a threatened adventurer will detour for a magic item. */
 export const ITEM_INTEREST_RADIUS = 12;
+/** Straight-line tile distance (see grid.js's losDistance) within which an
+ *  adventurer plays the overhead "notice" tell on first spotting the cube
+ *  down a clear hallway. Roughly half the board's long axis (ROWS=31). */
+export const NOTICE_SIGHT_RADIUS = 15;
 
 // ---------------------------------------------------------------------------
 // Lives / run
@@ -205,6 +221,8 @@ export const DEFAULT_SETTINGS = {
   music: true,
   sfx: true,
   haptics: true,
+  /** Close-follow camera (see CLOSE_CAMERA_* below), independent of difficulty. */
+  closeCamera: false,
 };
 
 // ---------------------------------------------------------------------------
@@ -214,8 +232,12 @@ export const DEFAULT_SETTINGS = {
 export const PALETTE = {
   floor: 0x1d1a22,
   floorAlt: 0x252029,
-  wallTop: 0x4a4552,
-  wallSide: 0x2e2a35,
+  // Lighter top / darker side than the original 0x4a4552 / 0x2e2a35 — floor and
+  // walls were reading as one grey mass; this widens the value gap on both
+  // sides of the floor's lightness. Chosen from a side-by-side palette study,
+  // floor left unchanged.
+  wallTop: 0x625d6e,
+  wallSide: 0x211e28,
   mortar: 0x14121a,
   coin: 0xffcf4d,
   exit: 0x6ad3ff,
@@ -227,6 +249,16 @@ export const PALETTE = {
 export const CAMERA_PITCH_DEG = 12;
 /** Extra tiles of margin kept visible around the maze when fitting the camera. */
 export const CAMERA_MARGIN_TILES = 1.2;
+
+/** Optional close-follow camera mode (toggle near the HUD's pause button):
+ *  a steeper, closer angle that tracks the cube instead of framing the whole
+ *  board, chosen from the "presentation" angle in the adventurer legibility
+ *  study — steep enough that the models actually read, unlike the 12°
+ *  board-fit pitch at this range (see the study's write-up on that). Distance
+ *  is solved with the same fitCameraDistance() formula as the board camera,
+ *  just scoped to CLOSE_CAMERA_HALF_TILES instead of the whole maze. */
+export const CLOSE_CAMERA_PITCH_DEG = 35;
+export const CLOSE_CAMERA_HALF_TILES = { w: 5, h: 4 };
 
 /** Fixed simulation step, seconds. The renderer interpolates between steps. */
 export const FIXED_DT = 1 / 120;
@@ -269,5 +301,7 @@ export function levelParams(difficultyId, level) {
     ),
     lootGoalFraction: d.lootGoalFraction,
     scoreMult: d.scoreMult,
+    advColorTier: d.advColorTier,
+    haloMode: d.haloMode,
   };
 }

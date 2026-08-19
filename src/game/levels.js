@@ -60,7 +60,10 @@ export function buildLevel(scene, difficulty, levelNumber) {
     const archetype = ARCHETYPE_CYCLE[i % ARCHETYPE_CYCLE.length];
     const spawn = spawns[i % spawns.length];
     const adv = createAdventurer(maze, archetype, spawn, { speed: params.advSpeed });
-    const view = buildAdventurerMesh(scene, archetype);
+    const view = buildAdventurerMesh(scene, archetype, {
+      colorTier: params.advColorTier,
+      haloMode: params.haloMode,
+    });
     adventurers.push({ adv, view });
   }
 

@@ -15,8 +15,9 @@
  * read — this module never touches it directly.
  */
 
-import { on, EVENTS, state, setScreen } from '../state/store.js';
+import { on, EVENTS, state, setScreen, patch } from '../state/store.js';
 import { STARTING_LIVES, DRIED_WARNING_TIME } from '../config.js';
+import { saveSettings } from '../state/storage.js';
 
 // Loot bar reddens continuously with the ratio rather than jumping between a
 // couple of fixed colors, then pulses + shakes once it's close enough to the
@@ -46,9 +47,14 @@ export function createHud(root) {
         <span class="hud-label">Level</span>
         <span class="hud-level-value">1</span>
       </div>
-      <button type="button" class="hud-pause-btn" aria-label="Pause">
-        <span class="hud-pause-icon">❚❚</span>
-      </button>
+      <div class="hud-btn-col">
+        <button type="button" class="hud-camera-btn" aria-label="Toggle close camera">
+          <span class="hud-camera-icon">⌖</span>
+        </button>
+        <button type="button" class="hud-pause-btn" aria-label="Pause">
+          <span class="hud-pause-icon">❚❚</span>
+        </button>
+      </div>
     </div>
     <div class="hud-lives" aria-label="Lives remaining"></div>
     <div class="hud-loot-wrap">
@@ -74,6 +80,7 @@ export function createHud(root) {
   const driedWrapEl = el.querySelector('.hud-dried-wrap');
   const driedFillEl = el.querySelector('.hud-dried-fill');
   const pauseBtn = el.querySelector('.hud-pause-btn');
+  const cameraBtn = el.querySelector('.hud-camera-btn');
 
   // --- animation state -------------------------------------------------
   let displayedScore = 0; // banked (locked-in) score
@@ -211,12 +218,28 @@ export function createHud(root) {
     setScreen('paused');
   });
 
+  function syncCameraBtn() {
+    cameraBtn.classList.toggle('is-active', !!state.settings.closeCamera);
+  }
+
+  cameraBtn.addEventListener('click', () => {
+    // Same direct-mutation pattern as the pause button above: this toggle
+    // works for any difficulty and isn't tied to a run, so it goes straight
+    // to settings rather than through a handlers.on*() callback. main.js
+    // reacts to SETTINGS_CHANGED to actually move the camera.
+    const next = { ...state.settings, closeCamera: !state.settings.closeCamera };
+    saveSettings(next);
+    patch({ settings: next }, EVENTS.SETTINGS_CHANGED);
+    syncCameraBtn();
+  });
+
   // initial paint
   el.classList.toggle('is-visible', state.screen === 'playing' || state.screen === 'paused');
   syncLevel();
   syncLives();
   syncScoreTarget();
   syncLootTarget();
+  syncCameraBtn();
 
   function update() {
     // banked-score count-up

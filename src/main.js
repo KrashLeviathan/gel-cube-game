@@ -30,6 +30,10 @@ const uiRoot = document.getElementById('ui-root');
 state.settings = loadSettings();
 
 const sceneCtx = createScene(canvas);
+sceneCtx.setCameraMode(state.settings.closeCamera ? 'close' : 'board');
+on(EVENTS.SETTINGS_CHANGED, () => {
+  sceneCtx.setCameraMode(state.settings.closeCamera ? 'close' : 'board');
+});
 const input = createInput(canvas);
 
 const cubeView = buildCube(sceneCtx.scene, state.settings.oozeColor);
@@ -163,6 +167,7 @@ function render(dt, alpha) {
         state: adv.state,
         dir: adv.dir,
         packFullness: Math.max(0, Math.min(1, adv.pack / PACK_CAPACITY)),
+        spotted: adv.spotted,
       });
     }
   }
@@ -170,7 +175,7 @@ function render(dt, alpha) {
   fx.update(dt);
   scorePopups.update(dt, sceneCtx.camera);
   hud.update();
-  sceneCtx.update(dt);
+  sceneCtx.update(dt, player ? player.x : 0, player ? player.z : 0);
   sceneCtx.render();
 }
 

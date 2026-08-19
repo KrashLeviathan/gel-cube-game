@@ -503,3 +503,73 @@ crisp and it's simpler than a canvas-texture sprite for a handful of
 concurrent popups. Mounted into `uiRoot` alongside the HUD; `main.js` owns
 `scorePopups.update(dt, sceneCtx.camera)` in `render()` and resets the pool on
 `LEVEL_STARTED` the same way `fx.reset()`/`slimeTrail.reset()` already do.
+
+## Adventurer legibility pass — difficulty-gated look, notice tell, close camera ✅ landed
+
+Follow-up to the wall/floor contrast pass, driven by an art-direction study
+(a Three.js-in-an-Artifact doc, not checked into the repo). Four pieces:
+
+### ⚠️ `patch()`'s event payload is always the whole `state`, never `fields`
+
+`store.patch(fields, evt)` does `emit(evt, state)` — the listener receives the
+**entire store**, not the patch you passed in. Bit this pass directly: a first
+draft of `on(EVENTS.SETTINGS_CHANGED, (settings) => sceneCtx.setCameraMode(...))`
+silently no-opped because `settings.closeCamera` was actually
+`state.closeCamera` (undefined) — `state.settings.closeCamera` is where it
+actually lives. `audio.js`'s existing `SETTINGS_CHANGED` listener already gets
+this right by taking no argument and reading `state.settings` directly inside
+the callback; that's the pattern to copy, not the argument name.
+
+### `adv.spotted` + `losDistance()` — a second, independent "notices you" signal
+
+`grid.js` gained `losDistance(maze, aCol, aRow, bCol, bRow, who)`: straight
+line-of-sight only (same row or column, wrap-aware on columns, every tile
+between must be walkable), distinct from `pathfinding.js`'s `distanceField`
+(which routes around corners). `adventurer.js`'s `replan()` sets the public
+`adv.spotted` off it against `NOTICE_SIGHT_RADIUS` (config.js) every planning
+tick — deliberately independent of `state`/`hunt`/`flee`: it fires the same
+"oh!" beat whether or not a fresh `itemTaken`/hunt-flip happens to line up
+with the moment sight is gained. `adventurerMesh.js` edge-triggers the
+overhead "!" sprite off the rising edge of this flag inside `update()`, so
+main.js just passes `spotted: adv.spotted` through each frame — no new store
+event needed, no cooldown logic either (losing sight re-arms it for free).
+
+### Difficulty now drives adventurer color + a ground halo, not just pacing
+
+`config.js`'s `DIFFICULTIES` entries gained `advColorTier`
+(`'baseline'|'bright'`) and `haloMode` (`'none'|'flash'|'persist'`),
+threaded through `levelParams()` → `levels.js` → `buildAdventurerMesh(scene,
+archetype, { colorTier, haloMode })`. `adventurerMesh.js`'s material cache is
+now keyed `${archetype}:${colorTier}` (was just `archetype`) — easy to miss if
+you're skimming for "the cache key" and only see `archetype` used elsewhere in
+the file. The halo's flash-then-settle timing is armed at construction time,
+not off a `LEVEL_STARTED` listener — safe only because `levels.js` always
+builds a **fresh** `AdventurerView` per level (never pools/reuses one), so
+"constructed" and "level started" are the same instant for this module. If
+adventurer views ever do get pooled across levels, this halo arming needs to
+move to an explicit re-arm call.
+
+### Optional close-follow camera — `scene.js` gained a second camera mode
+
+`createScene()` returns a new `setCameraMode('board'|'close')`, and
+`update(dt, followX, followZ)` grew two (optional, default-0) trailing
+params. `'close'` reuses the exact same `fitCameraDistance()` formula as
+`'board'`, just solved for `CLOSE_CAMERA_HALF_TILES` (config.js) around the
+follow target instead of the whole maze at `CAMERA_PITCH_DEG` — same formula,
+different pitch/extent inputs, not a second camera system. No position
+smoothing/lerp on the follow target on purpose: screen wrap teleports
+`player.x` instantly, and a smoothed follow would visibly slide across the
+map on every wrap instead of cutting with it. Toggled from `ui/hud.js` (a
+button next to pause, not a Home-screen setting) via the same
+direct-`patch()`-plus-`saveSettings()` pattern the pause button and Home's
+`updateSetting()` both already use — see the gotcha above before wiring a new
+listener to it.
+
+### `src/render/archetypeShowcase.js` — new, self-contained
+
+The How to Play overlay's "Meet the party" panel. Its own
+`THREE.WebGLRenderer` on its own `<canvas>` (mounted on
+`setHowtoOpen(true)`, disposed on close) — not the game's `sceneCtx`, since
+this can open from Home before any run (and `sceneCtx.scene`) exists. Reuses
+`buildAdventurerMesh()` directly (four calls, one per archetype) rather than
+duplicating any geometry-building code.
