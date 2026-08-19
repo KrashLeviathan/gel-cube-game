@@ -158,6 +158,21 @@ button {
   color: var(--danger);
 }
 
+/* Version badge --------------------------------------------------------- */
+
+.version-badge {
+  position: absolute;
+  right: calc(var(--safe-r) + 10px);
+  bottom: calc(var(--safe-b) + 8px);
+  color: var(--muted);
+  opacity: 0.55;
+  font-size: 0.65rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+  pointer-events: none;
+  user-select: none;
+}
+
 /* Home ------------------------------------------------------------- */
 
 .home-hero {
@@ -381,6 +396,29 @@ button {
 
 .screen--paused {
   background: radial-gradient(120% 100% at 50% 0%, rgba(26, 22, 32, 0.97) 0%, rgba(7, 6, 10, 0.97) 70%);
+}
+
+.pause-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  width: min(420px, 90vw);
+}
+
+.confirm-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+}
+
+.confirm-text {
+  margin: 0;
+  color: var(--ink);
+  font-size: clamp(0.9rem, 3vw, 1.05rem);
+  line-height: 1.4;
 }
 
 /* Game Over -------------------------------------------------------------- */

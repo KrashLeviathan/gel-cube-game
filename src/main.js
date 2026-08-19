@@ -77,6 +77,7 @@ on(EVENTS.ADVENTURER_BANKED, (p) => {
 });
 on(EVENTS.ITEM_TAKEN, (p) => {
   fx.sparkle(worldX(p.col), worldZ(p.row));
+  fx.magicWave(worldX(p.col), worldZ(p.row));
 });
 on(EVENTS.LIFE_LOST, () => {
   const pl = rules.getPlayer();
