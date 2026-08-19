@@ -124,7 +124,40 @@ last said, since nothing recomputes it from an arbitrary tag name.
 
 ---
 
-## 3. Rolling back
+## 3. Caching
+
+[`public/_headers`](../public/_headers) sets the browser cache policy. Vite
+copies `public/` verbatim into `dist/`, so the file ships as one of the Worker's
+static assets; Cloudflare reads the rules and never serves the file itself
+(`/_headers` is a 404).
+
+| Path            | `Cache-Control`                                 | Why                                                                                        |
+| --------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `/`             | `no-store`                                      | The entry document is the only unhashed file, and it names the current build's bundles.    |
+| `/assets/*`     | `public, max-age=31536000, immutable`           | Vite content-hashes these, so a new build is a new URL and the old one is never asked for. |
+| everything else | Workers' default (`max-age=0, must-revalidate`) | The optional `public/audio/` mp3s, whose filenames are fixed by `docs/AUDIO.md`.           |
+
+Without this, Workers' default applies to `index.html` too — and Workers serves
+the entry document without an `ETag` to revalidate against, so browsers could
+keep replaying a stale `index.html` (and with it the previous build's bundle
+filenames) across a deploy until someone hard-refreshed.
+
+To check the rules after changing them, run the Worker against Cloudflare's own
+local runtime and read the headers back — `wrangler dev` prints
+`Parsed N valid header rules` on startup, which is the only place a malformed
+rule shows up (`wrangler deploy --dry-run` does **not** validate them):
+
+```bash
+npm run build && npx wrangler dev --port 8788
+```
+
+```bash
+curl -sI http://127.0.0.1:8788/ | grep -i cache-control
+```
+
+---
+
+## 4. Rolling back
 
 Cloudflare Workers keep a version history. To roll back:
 
@@ -138,7 +171,7 @@ newest version.
 
 ---
 
-## 4. Local build (for manual verification)
+## 5. Local build (for manual verification)
 
 ```bash
 npm ci
@@ -157,7 +190,7 @@ npx wrangler deploy
 
 ---
 
-## 5. Troubleshooting
+## 6. Troubleshooting
 
 - **Deploy workflow fails with an auth/permission error** — double check
   `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` are set correctly under
@@ -170,6 +203,12 @@ npx wrangler deploy
   [`wrangler.toml`](../wrangler.toml)'s `name` still matches the Worker's
   name exactly (a mismatch would deploy a _new_, differently named Worker
   instead of updating the existing one).
+- **Deploy succeeded but a browser still shows the old build** — check the
+  entry document's headers: `curl -sI https://gelatinous-cube-game.krashleviathan.com/ | grep -i cache-control`
+  should say `no-store`. If it says `max-age=0, must-revalidate` instead, the
+  `_headers` rules aren't being applied — confirm `public/_headers` survived the
+  build into `dist/_headers` and that its paths still match where the assets
+  land. See section 3.
 - **Tag push didn't trigger a deploy** — the tag must match the glob
   `release-*` (e.g. `release-1.0.0`), and it must be pushed explicitly with
   `git push origin <tag>` (tags aren't included by a plain `git push`).

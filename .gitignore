@@ -398,3 +398,6 @@ $RECYCLE.BIN/
 *.lnk
 
 # End of https://www.toptal.com/developers/gitignore/api/node,macos,emacs,windows,linux,intellij,visualstudiocode
+
+# Local state from `wrangler dev` (see docs/DEPLOYMENT-INSTRUCTIONS.md §3).
+.wrangler/
