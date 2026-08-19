@@ -57,10 +57,13 @@ import {
   SCORE_PER_RECOVERED_COIN,
   LEVEL_CLEAR_BONUS,
   SCORE_PER_UNBANKED_COIN,
+  SCORE_PER_TORCH_SNUFFED,
+  TORCH_SNUFF_DIST,
 } from '../config.js';
 import { state, patch, emit, on, setScreen, resetRun, EVENTS } from '../state/store.js';
 import { qualifies } from '../state/storage.js';
 import { buildLevel } from './levels.js';
+import { worldX, worldZ } from '../maze/grid.js';
 
 // Seconds the "LEVEL CLEARED"/"LEVEL FAILED" banner gets to sit on screen,
 // with the dissolve/spill animations still playing out on the old level,
@@ -81,6 +84,7 @@ export function createRules({ scene }) {
   let driedWarningFired = false;
   let lastCubeSpeed = 0;
   let transition = null; // { type: 'cleared'|'failed', timer, levelNumber }
+  const snuffedTorches = new Set(); // indices into level.torchPositions, this level only
 
   // -------------------------------------------------------------------------
   // wrap-aware contact distance (world units; COLS === maze width in tiles)
@@ -95,11 +99,24 @@ export function createRules({ scene }) {
     return Math.hypot(wrappedDeltaX(ax - bx), az - bz);
   }
 
+  // `state.score` is always `bankedScore + roundScore` — bankedScore is the
+  // locked-in total from rounds already finished, roundScore is this round's
+  // live, fluctuating contribution (see startLevel()). Every scoring event
+  // routes through here so the two stay in sync and the HUD can show both.
   function awardScore(rawAmount) {
-    if (!currentParams || !rawAmount) return;
+    if (!currentParams || !rawAmount) return 0;
     const delta = Math.round(rawAmount * currentParams.scoreMult);
-    if (!delta) return;
-    patch({ score: state.score + delta }, EVENTS.SCORE_CHANGED);
+    if (!delta) return 0;
+    const roundScore = state.roundScore + delta;
+    patch({ roundScore, score: state.bankedScore + roundScore }, EVENTS.SCORE_CHANGED);
+    return delta;
+  }
+
+  /** Fire a floating "+120"/"-40" indicator at a world position. No-op for a
+   *  zero delta (e.g. a scoreMult of 0 rounding an award away). */
+  function popupScore(amount, x, z) {
+    if (!amount) return;
+    emit(EVENTS.SCORE_POPUP, { amount, x, z });
   }
 
   // -------------------------------------------------------------------------
@@ -117,7 +134,14 @@ export function createRules({ scene }) {
     recoveredCoins = 0;
     respawnGrace = 0;
     driedWarningFired = false;
+    snuffedTorches.clear();
 
+    // Fold whatever the previous round's roundScore ended at (clear bonus
+    // included, or a partial/negative round on a failed retry) into the
+    // locked-in bank, then open the new round at its starting bonus — see
+    // the SCORE_PER_UNBANKED_COIN comment in config.js for why that bonus
+    // exactly matches "coinsTotal * SCORE_PER_UNBANKED_COIN".
+    const bankedScore = state.score;
     patch(
       {
         level: levelNumber,
@@ -131,9 +155,13 @@ export function createRules({ scene }) {
         driedRemaining: 0,
         combo: 0,
         cubeMoving: false,
+        bankedScore,
+        roundScore: 0,
+        score: bankedScore,
       },
       EVENTS.LEVEL_STARTED,
     );
+    awardScore(built.coinsTotal * SCORE_PER_UNBANKED_COIN);
   }
 
   function disposeLevel() {
@@ -197,8 +225,11 @@ export function createRules({ scene }) {
 
   function triggerLevelCleared() {
     if (transition) return;
-    const unbanked = Math.max(0, state.coinsTotal - state.coinsBanked);
-    awardScore(LEVEL_CLEAR_BONUS + SCORE_PER_UNBANKED_COIN * unbanked);
+    // The unbanked-coin bonus isn't awarded here — it's already fully priced
+    // into roundScore, paid out in real time as the inverse of every banked
+    // coin's penalty (see the SCORE_PER_UNBANKED_COIN comment in config.js).
+    const delta = awardScore(LEVEL_CLEAR_BONUS);
+    if (player) popupScore(delta, player.x, player.z);
     patch({}, EVENTS.LEVEL_CLEARED);
     transition = { type: 'cleared', timer: TRANSITION_DELAY, levelNumber: state.level + 1 };
   }
@@ -252,6 +283,25 @@ export function createRules({ scene }) {
     }
   }
 
+  // Walking the cube near a torch snuffs it for a small bonus, once per
+  // torch per level. `level.torchPositions` is plain data (col/row/x/z)
+  // built alongside the render torches in levels.js from the identical spot
+  // list, so index i here is index i in torches.js's own array — this
+  // module still never calls into the render object itself; main.js does
+  // that off the TORCH_SNUFFED event, same as every other fx trigger.
+  function tickTorches() {
+    const positions = level.torchPositions;
+    for (let i = 0; i < positions.length; i++) {
+      if (snuffedTorches.has(i)) continue;
+      const t = positions[i];
+      if (contactDistance(player.x, player.z, t.x, t.z) > TORCH_SNUFF_DIST) continue;
+      snuffedTorches.add(i);
+      const delta = awardScore(SCORE_PER_TORCH_SNUFFED);
+      popupScore(delta, t.x, t.z);
+      emit(EVENTS.TORCH_SNUFFED, { index: i, col: t.col, row: t.row });
+    }
+  }
+
   function buildAdventurerCtx() {
     return {
       cube: { col: player.col, row: player.row, dried: state.dried },
@@ -280,6 +330,8 @@ export function createRules({ scene }) {
         lootGoal: state.lootGoal,
       });
       patch({ coinsBanked: state.coinsBanked }, EVENTS.LOOT_CHANGED);
+      const delta = awardScore(-SCORE_PER_UNBANKED_COIN * result.count);
+      popupScore(delta, worldX(result.col), worldZ(result.row));
       if (state.coinsBanked >= state.lootGoal) triggerLevelFailed();
     } else if (result.type === 'itemTaken') {
       state.driedRemaining = currentParams.driedDuration;
@@ -307,7 +359,8 @@ export function createRules({ scene }) {
       spillCount = spillResult.count;
       raw += SCORE_PER_RECOVERED_COIN * spillResult.count;
     }
-    awardScore(raw);
+    const delta = awardScore(raw);
+    popupScore(delta, player.x, player.z);
 
     emit(EVENTS.DIGEST_STARTED, { col: adv.col, row: adv.row });
     emit(EVENTS.ADVENTURER_DISSOLVED, {
@@ -385,7 +438,10 @@ export function createRules({ scene }) {
     }
     if (!level) return;
 
-    if (respawnGrace <= 0) resolveContacts();
+    if (respawnGrace <= 0) {
+      tickTorches();
+      resolveContacts();
+    }
   }
 
   // -------------------------------------------------------------------------

@@ -9,6 +9,7 @@ import './ui/styles.css';
 import { createScene } from './render/scene.js';
 import { createScreens } from './ui/screens.js';
 import { createHud } from './ui/hud.js';
+import { createScorePopups } from './ui/scorePopups.js';
 import { createInput } from './game/input.js';
 import { createRules } from './game/rules.js';
 import { createLoop } from './game/loop.js';
@@ -41,6 +42,7 @@ const audio = createAudio();
 audio.init();
 
 const hud = createHud(uiRoot);
+const scorePopups = createScorePopups(uiRoot, canvas);
 const screens = createScreens(uiRoot, {
   onStartGame(difficulty) {
     cubeView.setColor(state.settings.oozeColor);
@@ -100,6 +102,13 @@ on(EVENTS.LIFE_LOST, () => {
 on(EVENTS.LEVEL_STARTED, () => {
   slimeTrail.reset();
   fx.reset();
+  scorePopups.reset();
+});
+on(EVENTS.SCORE_POPUP, (p) => scorePopups.spawn(p));
+on(EVENTS.TORCH_SNUFFED, (p) => {
+  const lvl = rules.getLevel();
+  if (lvl) lvl.torches.snuff(p.index);
+  fx.sparkle(worldX(p.col), worldZ(p.row), PALETTE.torch);
 });
 
 // ---------------------------------------------------------------------------
@@ -159,6 +168,8 @@ function render(dt, alpha) {
   }
 
   fx.update(dt);
+  scorePopups.update(dt, sceneCtx.camera);
+  hud.update();
   sceneCtx.update(dt);
   sceneCtx.render();
 }

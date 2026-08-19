@@ -806,6 +806,39 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
+.hud-round {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35em;
+  margin-top: 0.1em;
+}
+
+.hud-round-label {
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.hud-round-value {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-round.is-negative .hud-round-value {
+  color: var(--danger);
+}
+
+.hud-round.flash-up .hud-round-value {
+  animation: hud-flash-up 0.5s ease;
+}
+
+.hud-round.flash-down .hud-round-value {
+  animation: hud-flash-down 0.5s ease;
+}
+
 .hud-level-value {
   font-size: clamp(1.1rem, 4.5vw, 1.5rem);
   font-weight: 800;
@@ -900,17 +933,18 @@ button {
 .hud-loot-fill {
   height: 100%;
   width: 0%;
-  background: linear-gradient(90deg, #ffe08a, var(--gold));
+  /* Base color; hud.js overrides this inline every frame with a continuous
+     gold->red interpolation keyed to the loot ratio (lootColorForRatio). */
+  background: #ffe08a;
   transition: background 0.3s ease;
 }
 
-.hud-loot-bar.is-warn .hud-loot-fill {
-  background: linear-gradient(90deg, #ffb35c, #ff7a3c);
+.hud-loot-wrap.is-critical .hud-loot-fill {
+  animation: hud-pulse 0.6s ease-in-out infinite;
 }
 
-.hud-loot-bar.is-danger .hud-loot-fill {
-  background: linear-gradient(90deg, #ff7a5c, var(--danger));
-  animation: hud-pulse 0.6s ease-in-out infinite;
+.hud-loot-wrap.is-critical {
+  animation: hud-shake 0.5s ease-in-out infinite;
 }
 
 .hud-dried-wrap {
@@ -973,6 +1007,79 @@ button {
   }
 }
 
+@keyframes hud-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-3px);
+  }
+  40% {
+    transform: translateX(3px);
+  }
+  60% {
+    transform: translateX(-2px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+@keyframes hud-flash-up {
+  0% {
+    color: #b6ff8c;
+    transform: scale(1.3);
+  }
+  100% {
+    color: var(--accent);
+    transform: scale(1);
+  }
+}
+
+@keyframes hud-flash-down {
+  0% {
+    color: #ff8a7a;
+    transform: scale(1.3);
+  }
+  100% {
+    color: var(--danger);
+    transform: scale(1);
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Floating score popups
+--------------------------------------------------------------------- */
+
+.score-popups {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.score-popup {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: none;
+  font-size: clamp(0.85rem, 3.2vw, 1.15rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.85);
+  white-space: nowrap;
+  will-change: transform, opacity;
+}
+
+.score-popup.is-positive {
+  color: var(--accent);
+}
+
+.score-popup.is-negative {
+  color: var(--danger);
+}
+
 /* ---------------------------------------------------------------------
    Landscape tightening
 --------------------------------------------------------------------- */
@@ -1030,8 +1137,11 @@ button {
     transition: none !important;
   }
 
-  .hud-loot-bar.is-danger .hud-loot-fill,
-  .hud-dried-wrap.is-blinking {
+  .hud-loot-wrap.is-critical .hud-loot-fill,
+  .hud-loot-wrap.is-critical,
+  .hud-dried-wrap.is-blinking,
+  .hud-round.flash-up .hud-round-value,
+  .hud-round.flash-down .hud-round-value {
     animation: none !important;
   }
 

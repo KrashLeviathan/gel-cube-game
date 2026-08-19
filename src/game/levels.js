@@ -13,7 +13,7 @@
 import { levelParams } from '../config.js';
 import { generateMaze } from '../maze/generator.js';
 import { buildDungeon } from '../render/dungeonMesh.js';
-import { buildTorches } from '../render/torches.js';
+import { buildTorches, getTorchSpots, torchMountPosition } from '../render/torches.js';
 import { createPickups } from '../entities/pickups.js';
 import { createPlayer } from '../entities/player.js';
 import { createAdventurer, ARCHETYPES } from '../entities/adventurer.js';
@@ -29,6 +29,7 @@ const ARCHETYPE_CYCLE = Object.keys(ARCHETYPES);
  *   maze: object, params: object, player: object,
  *   adventurers: {adv: object, view: object}[],
  *   pickups: object, dungeonView: object, torches: object,
+ *   torchPositions: {col: number, row: number, x: number, z: number}[],
  *   coinsTotal: number, lootGoal: number, dispose(): void,
  * }}
  */
@@ -39,7 +40,16 @@ export function buildLevel(scene, difficulty, levelNumber) {
   const params = levelParams(difficulty, levelNumber);
 
   const dungeonView = buildDungeon(scene, maze);
-  const torches = buildTorches(scene, maze);
+  // Same spot list handed to both the visual (buildTorches) and rules.js's
+  // snuff-detection below, so index i means the same torch on both sides
+  // without rules.js ever importing/calling the render module directly.
+  const torchSpots = getTorchSpots(maze);
+  const torches = buildTorches(scene, maze, torchSpots);
+  const torchPositions = torchSpots.map((spot) => ({
+    col: spot.col,
+    row: spot.row,
+    ...torchMountPosition(spot),
+  }));
   const pickups = createPickups(scene, maze, params.magicItems);
 
   const player = createPlayer(maze, {});
@@ -74,6 +84,7 @@ export function buildLevel(scene, difficulty, levelNumber) {
     pickups,
     dungeonView,
     torches,
+    torchPositions,
     coinsTotal,
     lootGoal,
     dispose,
