@@ -1,0 +1,8 @@
+# Generated / vendored — never ours to format.
+dist/
+node_modules/
+package-lock.json
+
+# Contract with the user: filenames and layout here are documented in
+# docs/AUDIO.md and the folder is meant to be dropped in as-is.
+public/audio/

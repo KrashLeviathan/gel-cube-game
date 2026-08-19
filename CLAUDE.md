@@ -26,11 +26,19 @@ npm run build        # production build into dist/
 npm run verify       # lists any stubbed modules, then runs the production build
 npm run verify:maze  # generates hundreds of mazes and asserts every invariant
 npm run preview      # serve the built dist/ locally
+npm run format       # Prettier over the whole repo
+npm run format:check # Prettier in check-only mode (what CI runs)
 ```
 
-`npm run verify` and `npm run verify:maze` are what CI runs — they are the whole
-test suite. Run both before declaring work done; run `verify:maze` in particular
-after touching anything under `src/maze/`.
+`npm run format:check`, `npm run verify` and `npm run verify:maze` are what CI
+runs — they are the whole test suite. Run all three before declaring work done;
+run `verify:maze` in particular after touching anything under `src/maze/`.
+
+Formatting is Prettier's job, not yours: config lives in `.prettierrc.json` and
+`.githooks/pre-commit` formats staged files on the way into every commit. The
+hook is installed by the `prepare` script, so `npm install` is all it takes; it
+is skipped by `git commit -n`. Don't hand-align code against the formatter, and
+don't reformat lines you aren't otherwise touching.
 
 To see the game running, use the browser preview tools with the `dev`
 configuration in `.claude/launch.json` — never start the dev server through Bash.
@@ -94,7 +102,9 @@ horizontally on `maze.tunnelRows`; there is no vertical wrap.
 ## Hard constraints
 
 1. **No new dependencies.** Vanilla ES modules and Three.js only. No TypeScript,
-   no React, no utility libraries.
+   no React, no utility libraries. This is about what ships: `three` stays the
+   lone runtime dependency, and build/dev tooling stays minimal too — Vite and
+   Prettier, nothing more, unless the user asks for it.
 2. **No external asset files.** Textures are drawn procedurally into a `<canvas>`;
    geometry is built from Three.js primitives. The sole exception is the optional
    mp3s the user drops into `public/audio/` — and the game must run identically

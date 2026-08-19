@@ -9,9 +9,13 @@
     "build": "vite build",
     "preview": "vite preview",
     "verify": "node scripts/verify.mjs",
-    "verify:maze": "node scripts/verify-maze.mjs"
+    "verify:maze": "node scripts/verify-maze.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "git rev-parse --git-dir > /dev/null 2>&1 && git config core.hooksPath .githooks || true"
   },
   "devDependencies": {
+    "prettier": "3.9.6",
     "vite": "^5.4.10"
   },
   "dependencies": {

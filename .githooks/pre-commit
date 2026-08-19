@@ -1,0 +1,49 @@
+#!/bin/sh
+#
+# Formats staged files with Prettier before they are committed.
+#
+# Installed by the "prepare" script (git config core.hooksPath .githooks), so a
+# plain `npm install` is all it takes to opt in. Bypass with `git commit -n`.
+
+set -e
+
+# Newline is the only separator throughout, so paths containing spaces survive.
+NL='
+'
+IFS="$NL"
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR -z | tr '\0' '\n')
+[ -n "$staged" ] || exit 0
+
+# A file with BOTH staged and unstaged edits can't be rewritten safely — writing
+# to the working copy and re-adding it would sweep the unstaged half into the
+# commit. Those we only check, and let the author sort out.
+unstaged=$(git diff --name-only -z | tr '\0' '\n')
+
+clean=''
+partial=''
+for f in $staged; do
+  [ -f "$f" ] || continue
+  if printf '%s\n' "$unstaged" | grep -qxF -- "$f"; then
+    partial="$partial$f$NL"
+  else
+    clean="$clean$f$NL"
+  fi
+done
+
+# --ignore-unknown so the hook never needs its own list of file extensions.
+if [ -n "$clean" ]; then
+  printf '%s' "$clean" | tr '\n' '\0' | xargs -0 npx --no-install prettier --write --ignore-unknown >/dev/null
+  printf '%s' "$clean" | tr '\n' '\0' | xargs -0 git add --
+fi
+
+if [ -n "$partial" ]; then
+  if ! printf '%s' "$partial" | tr '\n' '\0' |
+    xargs -0 npx --no-install prettier --check --ignore-unknown >/dev/null 2>&1; then
+    echo "pre-commit: these files are unformatted and have unstaged changes," >&2
+    echo "so the hook won't rewrite them. Run 'npm run format', then restage:" >&2
+    printf '%s' "$partial" | tr '\n' '\0' |
+      xargs -0 npx --no-install prettier --list-different --ignore-unknown >&2
+    exit 1
+  fi
+fi
