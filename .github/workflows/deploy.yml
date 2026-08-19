@@ -31,4 +31,11 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Pinned, and NOT the action's default. wrangler-action@v3 still
+          # installs 3.90.0, which ignores `public/_headers` for Workers
+          # assets — it uploads the file as a public asset instead of applying
+          # the rules, silently. Release 0.1.2 shipped with no cache headers
+          # because of it. Wrangler 4 needs Node 22, which is what .nvmrc
+          # pins. A correct deploy logs "Parsed N valid header rules".
+          wranglerVersion: '4.124.0'
           command: deploy

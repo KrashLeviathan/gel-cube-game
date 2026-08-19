@@ -200,6 +200,22 @@ nvm use && npm run build && npx wrangler dev --port 8788
 it), and nothing else in the toolchain complains, so this is where a stale shell
 shows up.
 
+**Check the wrangler major before trusting a local test.** `_headers` support
+for Workers assets only exists in wrangler 4. wrangler-action@v3 still defaults
+to 3.90.0, which ignores the file _and uploads it as a public asset_ without a
+word of warning — release 0.1.2 went out that way after a local test on
+wrangler 4 passed. `deploy.yml` now pins `wranglerVersion`. After any deploy,
+the one-line check that the rules actually applied is:
+
+```bash
+curl -sI https://gelatinous-cube-game.krashleviathan.com/ | grep -i cache-control
+```
+
+`no-store` means they applied; `max-age=0, must-revalidate` is the Workers
+default and means they did not. `/_headers` returning 200 instead of 404 is the
+same failure seen from the other side. The deploy log shows it too: a working
+deploy prints `Parsed N valid header rules`.
+
 ```bash
 curl -sI http://127.0.0.1:8788/ | grep -i cache-control
 ```
