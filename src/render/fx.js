@@ -1,11 +1,114 @@
 /**
- * WS-C — pooled particle bursts: engulf spray, splashes, pickup sparkle.
- * See docs/SPEC.md §5. All pools are preallocated InstancedMeshes with plain
- * typed arrays driving per-particle physics; update() never allocates.
+ * WS-C — pooled particle bursts: engulf spray, splashes, pickup sparkle, and
+ * the magic-item shockwave. See docs/SPEC.md §5. All pools are preallocated
+ * InstancedMeshes with plain typed arrays driving per-particle physics;
+ * update() never allocates. The shockwave is a small separate pool of plain
+ * Meshes (not instanced) since each one needs its own radius/opacity
+ * uniforms — see `makeWavePool` below.
  */
 import * as THREE from 'three';
+import { COLS, ROWS } from '../config.js';
 
 const GRAVITY = -2.6;
+
+// ---------------------------------------------------------------------------
+// Magic-item shockwave: a ring of light that expands from the pickup tile to
+// cover the whole board over WAVE_DURATION seconds, fading out as it grows.
+// Radius grows monotonically to WAVE_MAX_RADIUS while opacity fades to 0, so
+// (unlike the pooled particles above) it never shrinks back down at the end.
+// ---------------------------------------------------------------------------
+const WAVE_COUNT = 3;
+const WAVE_DURATION = 1.0;
+// Longest possible distance between two tiles on the board, plus margin — so
+// the wave always reaches every corner no matter where it starts.
+const WAVE_MAX_RADIUS = Math.hypot(COLS, ROWS) + 4;
+const WAVE_BAND_WIDTH = 2.4; // world units, soft edge of the ring band
+
+function makeWavePool(scene, count) {
+  const geo = new THREE.PlaneGeometry(WAVE_MAX_RADIUS * 2, WAVE_MAX_RADIUS * 2);
+  geo.rotateX(-Math.PI / 2);
+  const items = [];
+  for (let i = 0; i < count; i++) {
+    const material = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      uniforms: {
+        uRadius: { value: 0 },
+        uOpacity: { value: 0 },
+        uColor: { value: new THREE.Color(0xfff2b0) },
+      },
+      vertexShader: `
+        varying vec2 vPos;
+        void main() {
+          vPos = position.xz;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        varying vec2 vPos;
+        uniform float uRadius;
+        uniform float uOpacity;
+        uniform vec3 uColor;
+        void main() {
+          float d = length(vPos);
+          float band = 1.0 - smoothstep(0.0, ${WAVE_BAND_WIDTH.toFixed(1)}, abs(d - uRadius));
+          float alpha = band * uOpacity;
+          if (alpha < 0.004) discard;
+          gl_FragColor = vec4(uColor, alpha);
+        }
+      `,
+    });
+    const mesh = new THREE.Mesh(geo, material);
+    mesh.frustumCulled = false;
+    mesh.visible = false;
+    scene.add(mesh);
+    items.push({ mesh, material, timer: -1 });
+  }
+  return { geo, items, cursor: 0 };
+}
+
+function triggerWave(pool, x, z, color) {
+  const item = pool.items[pool.cursor];
+  pool.cursor = (pool.cursor + 1) % pool.items.length;
+  item.mesh.position.set(x, 0.05, z);
+  item.material.uniforms.uColor.value.set(color ?? 0xfff2b0);
+  item.material.uniforms.uRadius.value = 0;
+  item.material.uniforms.uOpacity.value = 0;
+  item.timer = WAVE_DURATION;
+  item.mesh.visible = true;
+}
+
+function stepWavePool(pool, dt) {
+  for (const item of pool.items) {
+    if (item.timer < 0) continue;
+    item.timer -= dt;
+    if (item.timer <= 0) {
+      item.timer = -1;
+      item.mesh.visible = false;
+      continue;
+    }
+    const t = 1 - item.timer / WAVE_DURATION; // 0 (spawn) -> 1 (fully expanded)
+    const eased = 1 - (1 - t) * (1 - t); // ease-out: fast start, slow finish
+    item.material.uniforms.uRadius.value = eased * WAVE_MAX_RADIUS;
+    item.material.uniforms.uOpacity.value = (1 - t) * 0.85;
+  }
+}
+
+function killWavePool(pool) {
+  for (const item of pool.items) {
+    item.timer = -1;
+    item.mesh.visible = false;
+  }
+}
+
+function disposeWavePool(pool, scene) {
+  pool.geo.dispose();
+  for (const item of pool.items) {
+    scene.remove(item.mesh);
+    item.material.dispose();
+  }
+}
 
 function fadeMaterial(opts) {
   // Deliberately no `vertexColors: true` here: these pools tint via
@@ -175,6 +278,7 @@ export function createFx(scene) {
   const motePool = makePool(scene, moteGeo, moteMat, 56);
 
   const pools = [dropletPool, debrisPool, ringPool, motePool];
+  const wavePool = makeWavePool(scene, WAVE_COUNT);
 
   function dissolveBurst(x, z, color) {
     _color.set(color ?? 0xffffff);
@@ -286,18 +390,25 @@ export function createFx(scene) {
     }
   }
 
+  function magicWave(x, z, color) {
+    triggerWave(wavePool, x, z, color);
+  }
+
   function update(dt) {
     for (const p of pools) stepPool(p, dt);
+    stepWavePool(wavePool, dt);
   }
 
   function reset() {
     for (const p of pools) killPool(p);
     for (const p of pools) stepPool(p, 0);
+    killWavePool(wavePool);
   }
 
   function dispose() {
     for (const p of pools) disposePool(p, scene);
+    disposeWavePool(wavePool, scene);
   }
 
-  return { dissolveBurst, splash, sparkle, update, reset, dispose };
+  return { dissolveBurst, splash, sparkle, magicWave, update, reset, dispose };
 }

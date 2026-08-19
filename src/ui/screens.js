@@ -32,6 +32,9 @@ import { on, state, setScreen, patch, EVENTS } from '../state/store.js';
 import { DIFFICULTIES, OOZE_COLORS } from '../config.js';
 import { saveSettings, qualifies, saveScore } from '../state/storage.js';
 import { renderLeaderboard, promptInitials } from './leaderboard.js';
+import { VERSION } from '../version.js';
+
+const VERSION_BADGE_HTML = `<div class="version-badge">v${VERSION}</div>`;
 
 const BANNER_TEXT = {
   [EVENTS.LEVEL_STARTED]: (s) => `LEVEL ${s.level} — THE PARTY DESCENDS`,
@@ -88,6 +91,7 @@ export function createScreens(root, handlers = {}) {
         <button type="button" class="toggle" data-role="sfx"></button>
       </div>
     </div>
+    ${VERSION_BADGE_HTML}
   `;
   wrap.appendChild(homeEl);
 
@@ -161,20 +165,99 @@ export function createScreens(root, handlers = {}) {
   lbEl.querySelector('[data-action="back"]').addEventListener('click', () => setScreen('home'));
 
   // ---------------------------------------------------------------------
-  // Pause
+  // Pause — Quit to Home asks for confirmation first, then (if the current
+  // score qualifies) offers an optional leaderboard initials entry before
+  // handing off to handlers.onQuit(). Mirrors the Game Over flow below,
+  // just reachable mid-run instead of only after a loss.
   // ---------------------------------------------------------------------
   const pauseEl = document.createElement('section');
   pauseEl.className = 'screen screen--paused';
   pauseEl.innerHTML = `
     <h2 class="screen-heading">Paused</h2>
-    <div class="home-actions">
-      <button type="button" class="btn btn--primary btn--large" data-action="resume">Resume</button>
-      <button type="button" class="btn btn--secondary" data-action="quit">Quit to Home</button>
-    </div>
+    <div class="pause-stage" data-role="pause-stage"></div>
+    ${VERSION_BADGE_HTML}
   `;
   wrap.appendChild(pauseEl);
-  pauseEl.querySelector('[data-action="resume"]').addEventListener('click', () => handlers.onResume?.());
-  pauseEl.querySelector('[data-action="quit"]').addEventListener('click', () => handlers.onQuit?.());
+  const pauseStageEl = pauseEl.querySelector('[data-role="pause-stage"]');
+
+  let pauseToken = 0;
+
+  function renderPauseDefault() {
+    pauseToken++;
+    pauseStageEl.innerHTML = '';
+    const actions = document.createElement('div');
+    actions.className = 'home-actions';
+    actions.innerHTML = `
+      <button type="button" class="btn btn--primary btn--large" data-action="resume">Resume</button>
+      <button type="button" class="btn btn--secondary" data-action="quit">Quit to Home</button>
+    `;
+    pauseStageEl.appendChild(actions);
+    actions.querySelector('[data-action="resume"]').addEventListener('click', () => handlers.onResume?.());
+    actions.querySelector('[data-action="quit"]').addEventListener('click', () => renderQuitConfirm());
+  }
+
+  function renderQuitConfirm() {
+    const token = ++pauseToken;
+    pauseStageEl.innerHTML = '';
+    const confirmWrap = document.createElement('div');
+    confirmWrap.className = 'confirm-panel';
+    confirmWrap.innerHTML = `
+      <p class="confirm-text">Quit to the main menu? Your progress this level will be lost.</p>
+      <div class="home-actions">
+        <button type="button" class="btn btn--primary btn--large" data-action="quit-confirm">Quit to Home</button>
+        <button type="button" class="btn btn--secondary" data-action="quit-cancel">Cancel</button>
+      </div>
+    `;
+    pauseStageEl.appendChild(confirmWrap);
+    confirmWrap.querySelector('[data-action="quit-cancel"]').addEventListener('click', () => {
+      if (token !== pauseToken) return;
+      renderPauseDefault();
+    });
+    confirmWrap.querySelector('[data-action="quit-confirm"]').addEventListener('click', () => {
+      if (token !== pauseToken) return;
+      proceedToQuit(token);
+    });
+  }
+
+  function proceedToQuit(token) {
+    const finalScore = state.score;
+    if (!qualifies(finalScore)) {
+      handlers.onQuit?.();
+      return;
+    }
+    pauseStageEl.innerHTML = '';
+    const askWrap = document.createElement('div');
+    askWrap.className = 'confirm-panel';
+    askWrap.innerHTML = `
+      <p class="confirm-text">Your score qualifies for the leaderboard. Save your initials?</p>
+      <div class="home-actions">
+        <button type="button" class="btn btn--primary btn--large" data-action="save-initials">Enter Initials</button>
+        <button type="button" class="btn btn--secondary" data-action="skip-initials">Skip</button>
+      </div>
+    `;
+    pauseStageEl.appendChild(askWrap);
+    askWrap.querySelector('[data-action="skip-initials"]').addEventListener('click', () => {
+      if (token !== pauseToken) return;
+      handlers.onQuit?.();
+    });
+    askWrap.querySelector('[data-action="save-initials"]').addEventListener('click', () => {
+      if (token !== pauseToken) return;
+      pauseStageEl.innerHTML = '';
+      const initialsHost = document.createElement('div');
+      pauseStageEl.appendChild(initialsHost);
+      promptInitials(initialsHost, finalScore).then((initials) => {
+        if (token !== pauseToken) return;
+        saveScore({
+          initials,
+          score: finalScore,
+          level: state.level,
+          difficulty: state.settings.difficulty,
+          date: new Date().toISOString(),
+        });
+        handlers.onQuit?.();
+      });
+    });
+  }
 
   // ---------------------------------------------------------------------
   // Game Over
@@ -257,12 +340,14 @@ export function createScreens(root, handlers = {}) {
 
   function render(screen) {
     goToken++; // invalidate any in-flight game-over async flow if we navigated away
+    pauseToken++; // ditto for an in-flight pause quit/initials flow
     wrap.classList.toggle('is-open', OPEN_SCREENS.has(screen));
     for (const [name, elm] of Object.entries(SCREEN_EL)) {
       elm.classList.toggle('is-active', name === screen);
     }
     if (screen === 'home') syncHomeSettings();
     if (screen === 'leaderboard') renderLeaderboard(lbEl.querySelector('[data-role="lb-list"]'));
+    if (screen === 'paused') renderPauseDefault();
     if (screen === 'gameover') runGameOverFlow();
   }
 
