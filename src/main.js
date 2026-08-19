@@ -13,6 +13,8 @@ import { createInput } from './game/input.js';
 import { createRules } from './game/rules.js';
 import { createLoop } from './game/loop.js';
 import { createAudio } from './game/audio.js';
+import { createUpdatePrompt } from './ui/updatePrompt.js';
+import { registerServiceWorker } from './swClient.js';
 import { buildCube } from './render/cube.js';
 import { createSlimeTrail } from './render/slimeTrail.js';
 import { createFx } from './render/fx.js';
@@ -57,6 +59,17 @@ screens.mount();
 
 input.onPause(() => {
   if (state.screen === 'playing') setScreen('paused');
+});
+
+// ---------------------------------------------------------------------------
+// Offline shell + update prompt. The two halves reference each other, which is
+// why both handlers are thunks: neither const is read until the player taps.
+// ---------------------------------------------------------------------------
+const updatePrompt = createUpdatePrompt(uiRoot, {
+  onRefresh: () => serviceWorker.applyUpdate(),
+});
+const serviceWorker = registerServiceWorker({
+  onUpdateReady: () => updatePrompt.show(),
 });
 
 // ---------------------------------------------------------------------------

@@ -142,6 +142,51 @@ the entry document without an `ETag` to revalidate against, so browsers could
 keep replaying a stale `index.html` (and with it the previous build's bundle
 filenames) across a deploy until someone hard-refreshed.
 
+### The service worker sits in front of all of it
+
+Once [`src/sw.js`](../src/sw.js) is installed it answers navigations from its
+own cache, so for returning players **the headers above stop deciding what they
+see — the worker's update lifecycle does.** The flow, end to end:
+
+1. A deploy changes the bundle, so `dist/sw.js` (which embeds a digest of every
+   emitted file) is byte-different.
+2. The browser notices on the next navigation, or when
+   [`src/swClient.js`](../src/swClient.js) calls `registration.update()` after
+   the tab has been backgrounded for 15 minutes.
+3. The new worker installs, precaches the new shell, and **parks in `waiting`**.
+   It never calls `skipWaiting()` on its own.
+4. The player gets the "A new version is ready" toast — held back until they're
+   not mid-run — and taps Refresh, which releases the waiting worker and
+   reloads.
+
+So a release reaches players on their next visit, or when they accept the
+prompt; it does not swap the bundle out from under a live game.
+
+### If you ever need to switch the worker off
+
+A service worker that is broken _and_ installed is sticky, so this is the escape
+hatch. Deploy an `sw.js` that clears up after itself:
+
+```js
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+      .then(() => self.registration.unregister())
+      .then(() => self.clients.claim()),
+  );
+});
+```
+
+Every client that reaches that worker unregisters itself and falls back to the
+plain `_headers` behaviour. Note that a **Cloudflare dashboard rollback does not
+do this** — it restores the old assets, but an already-installed worker keeps
+serving its own cache until it sees a byte-different `sw.js`. Rolling back to a
+build whose `sw.js` differs from the live one is fine; rolling back _to the same
+worker_ is not a way out.
+
 To check the rules after changing them, run the Worker against Cloudflare's own
 local runtime and read the headers back — `wrangler dev` prints
 `Parsed N valid header rules` on startup, which is the only place a malformed

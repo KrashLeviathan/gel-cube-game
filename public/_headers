@@ -17,6 +17,13 @@
 /index.html
   Cache-Control: no-store
 
+# The service worker decides when players get a new build, so a cached copy of
+# it would pin them to the old one. Browsers already bypass the HTTP cache for
+# the worker script (swClient.js registers with updateViaCache:'none'); this is
+# the belt to that pair of braces.
+/sw.js
+  Cache-Control: no-store
+
 # Vite content-hashes these, so a new build is a new URL and the old one is
 # simply never requested again. Caching them forever is safe, and it drops a
 # revalidation round-trip per file on a phone.
