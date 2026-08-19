@@ -20,6 +20,12 @@ end to end; work now is maintenance, tuning and features on a finished system.
 
 ## Commands
 
+**Node 22+**, pinned in `.nvmrc` — run `nvm use` in a fresh shell. Both CI
+workflows read that same file via `node-version-file`, so local, CI and deploy
+can't drift apart. Wrangler hard-fails below 22, which is the usual way this
+bites (`npm run verify` itself is happy on older Node, so the mismatch stays
+invisible until you touch deploy tooling).
+
 ```bash
 npm run dev          # Vite dev server on :5173, exposed on the LAN for phone testing
 npm run build        # production build into dist/

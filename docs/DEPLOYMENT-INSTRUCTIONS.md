@@ -193,8 +193,12 @@ local runtime and read the headers back — `wrangler dev` prints
 rule shows up (`wrangler deploy --dry-run` does **not** validate them):
 
 ```bash
-npm run build && npx wrangler dev --port 8788
+nvm use && npm run build && npx wrangler dev --port 8788
 ```
+
+`nvm use` matters here: wrangler refuses to start below Node 22 (`.nvmrc` pins
+it), and nothing else in the toolchain complains, so this is where a stale shell
+shows up.
 
 ```bash
 curl -sI http://127.0.0.1:8788/ | grep -i cache-control
