@@ -1,8 +1,13 @@
 # Gelatinous Cube — Design & Module Spec
 
-> **Read this whole file before writing code.** It is the contract between
-> parallel workstreams. If your task conflicts with this document, follow this
-> document and flag the conflict in your report instead of improvising.
+> **Read this whole file before changing gameplay code.** It is the design
+> contract for the game. If a task conflicts with this document, follow this
+> document and flag the conflict rather than improvising.
+>
+> The `WS-x` labels below mark which of the original parallel workstreams built
+> each module. They survive as cross-references to the same labels in the source
+> and in `docs/INTEGRATION.md`. That parallel build is finished — see
+> `CLAUDE.md` for how work is governed now.
 
 ---
 
@@ -77,7 +82,7 @@ at the top of `src/maze/grid.js`. Treat it as immutable after generation.
 ### Adventurer loop (this is the heart of the pacing)
 
 1. **COLLECT** — path to the nearest coin, eating coins it walks over.
-2. When the pack hits `PACK_CAPACITY` (8), switch to **BANK**: path to the
+2. When the pack hits `PACK_CAPACITY`, switch to **BANK**: path to the
    nearest `TILE_EXIT` stairwell, stand on it for `BANK_TIME`, then the carried
    coins are added to `state.coinsBanked` and the pack empties. Back to COLLECT.
 3. **FLEE** — if the healthy cube is within `FLEE_RADIUS` path-tiles, run away
@@ -115,15 +120,25 @@ Adventurers may never enter `TILE_LAIR` or `TILE_LAIR_DOOR`.
 
 All score additions are multiplied by `scoreMult` and rounded.
 
+### Pacing
+
+**A level should last roughly 60–90 seconds.** That target is what the
+loot-hauling mechanic exists to hit. Straight Pac-Man scoring collapses when you
+invert it: four adventurers eating coins where they stand clear a 200-coin maze
+in about 20 seconds. Forcing them to haul packs back to a stairwell triples their
+travel and creates the interception points the whole game is built on.
+
+If measured pacing drifts far off that band, `PACK_CAPACITY` and
+`LOOT_GOAL_FRACTION` are the levers to reach for before raw speeds.
+
 ---
 
 ## 5. Module map and public API
 
-Each module below is owned by exactly one workstream. **Do not edit files you
-do not own** — if you need a change in someone else's file, note it in your
-report instead.
+One module owns each concern. Keep a change inside the module that owns the
+concern, and call out anything that ripples across a documented API.
 
-### Contract files (architect-owned — read-only for subagents)
+### Contract files — change with care
 
 | File | Purpose |
 |---|---|
@@ -145,8 +160,9 @@ Requirements:
 - **No dead ends** in the main maze (every floor tile has ≥2 floor neighbours),
   except that lair-adjacent and item alcoves may have one.
 - Plenty of **loops** — it must not be a perfect maze.
-- A central **lair**: a rectangular room roughly 7×4 of `TILE_LAIR` with one
-  `TILE_LAIR_DOOR` tile on its top edge, sitting near the vertical middle.
+- A central **lair**: a rectangular room roughly 8×4 of `TILE_LAIR` with one
+  `TILE_LAIR_DOOR` tile on its top edge, sitting near the vertical middle. The
+  width must be even (COLS is), so read `maze.lair.cols` — never hardcode it.
 - One or two **tunnel rows** at the vertical middle, fully open to both the left
   and right edges, marked `TILE_TUNNEL`, connected to the maze interior.
 - **2–4 `TILE_EXIT` stairwells**, one per quadrant, in dead-end-ish alcoves.
@@ -271,6 +287,21 @@ Grid-locked movement with a queued turn, wrap handling via
 digesting multipliers). Exposes continuous world position **and** the tile it
 currently occupies.
 
+Pac-Man-grade movement is subtler than it looks. On a phone this *is* the whole
+experience — mushy controls kill the game regardless of how good it looks:
+
+- **Pre-turn buffering** — a turn requested slightly before a junction is
+  remembered and applied on arrival. Without this, touch feels broken.
+- **Instant reversal** — requesting the opposite direction applies immediately,
+  mid-tile, without waiting for a junction.
+- **Corner tolerance**, with deliberate snapping of the off-axis coordinate to
+  the corridor centreline. Accumulated float drift is the classic bug here.
+- Walls stop the cube cleanly *at* the tile centre, keeping its facing; it
+  resumes on the next legal request.
+- `col`/`row` always reflect the wrapped tile while `x`/`z` stay continuous, and
+  the caller must be able to tell a wrap happened this frame — the slime trail
+  and the audio both need to know.
+
 ### `src/game/input.js` — **WS-D**
 
 ```js
@@ -280,12 +311,23 @@ export function createInput(targetEl): Input
 
 Mobile first:
 - **Drag-anywhere floating joystick**: touch down anywhere on the play area sets
-  an origin; dragging past a small deadzone sets a 4-way direction; the
-  direction persists after release (Pac-Man style continuous movement).
-- **Swipe flicks** must also work — a short quick drag registers a direction.
-- Keyboard arrows + WASD as the desktop fallback. `Esc`/`P` pause.
-- Must not scroll or zoom the page: `touch-action: none`, prevent default on
-  the canvas, handle multi-touch sanely.
+  an origin; dragging past an ~18–24px deadzone resolves a 4-way direction; the
+  direction persists after release (Pac-Man style continuous movement), and
+  re-dragging while still held re-resolves it live.
+- **Swipe flicks** must also work — track velocity, not just displacement, so a
+  fast short flick isn't swallowed by the deadzone.
+- Hysteresis biased toward the current axis, so a sloppy diagonal doesn't
+  chatter between directions.
+- A **visible joystick indicator** while touching: ring at the origin, knob at
+  the offset. `input.js` creates that element itself and cleans it up in
+  `destroy()`.
+- **Pointer Events** throughout, so mouse, touch and stylus share one path.
+  Handle `pointercancel`, ignore a second finger, handle the pointer leaving.
+- Keyboard arrows + WASD as the desktop fallback. `Esc`/`P` pause. **Don't
+  swallow keys while focus is in a form field** — initials entry uses letters.
+- Must not scroll or zoom the page: `touch-action: none`, prevent default on the
+  canvas, and kill pull-to-refresh, pinch zoom, double-tap zoom, iOS
+  rubber-banding and the long-press menu.
 
 ### `src/entities/adventurer.js` — **WS-E**
 
@@ -298,7 +340,24 @@ export function createAdventurer(maze, archetype, spawn, opts): Adventurer
 list, and the pathfinding helpers. Implements the state machine in §4.
 Archetypes: `fighter`, `rogue`, `wizard`, `cleric` — differing in speed
 multiplier, greed (pack capacity tolerance), courage (flee radius), and item
-interest.
+interest, by roughly ±15% per axis: meaningful but not extreme.
+
+Their behaviour *is* the difficulty curve, which makes this the most
+gameplay-critical module in the project:
+
+- **No jitter.** Oscillating between equidistant goals, or flip-flopping at the
+  flee-radius boundary, is the classic failure. Transition hysteresis, a goal
+  dwell time, and preferring to continue straight on ties are what prevent it.
+- **Don't repath every frame** — 4–8Hz, staggered per adventurer so they don't
+  all recompute on the same one.
+- **They should look like they're thinking, not solving.** Perfect pathing feels
+  robotic and is unfairly hard: occasionally take the second-nearest coin,
+  hesitate at a junction when threatened, take a wrong turn while panicking.
+- A loot-laden fleer should prefer fleeing *toward* a stairwell where the two are
+  compatible — banking under pressure is a good moment.
+- They should use the wrap tunnels. Popping out the far side is a signature beat.
+- SEEK_ITEM is the party's counterplay and **must actually happen**, or the game
+  has no danger at all.
 
 ### `src/render/adventurerMesh.js` — **WS-E**
 
@@ -312,6 +371,12 @@ per archetype (fighter = sword+shield, rogue = daggers+hood, wizard = staff+hat,
 cleric = mace+holy symbol), a bobbing walk cycle, a little loot-sack that swells
 as the pack fills, and a **dissolve** animation (sink + shrink + fade).
 
+Everything is viewed from ~12° off vertical with the whole 28×31 maze on screen,
+so figures are small: **silhouette and colour do all the work, and fine detail is
+wasted.** The loot sack especially must be unmistakable — the player has to see
+at a glance who is carrying a full pack, because that is the juicy target. State
+should read too: panicked while fleeing, an aggressive lean while hunting.
+
 ### `src/entities/pickups.js` — **WS-E**
 
 ```js
@@ -322,7 +387,10 @@ export function createPickups(scene, maze, itemCount): Pickups
 
 Instanced coins (one `InstancedMesh`, hide by scaling to zero — never rebuild
 the mesh). Magic items are 3–5 distinct chunky props (wand, orb, tome, potion,
-horn) that bob and glow.
+horn) that bob and glow. They must be **the most eye-catching things on the
+board** — the player needs to see an adventurer closing on one. `spill()` should
+feel like a payout: coins scatter outward onto nearby walkable tiles, settle, and
+become collectable again.
 
 ### `src/game/rules.js` — **WS-F (integration)**
 
@@ -377,7 +445,7 @@ touch. Expected filenames are listed in `docs/AUDIO.md` (WS-H writes it).
 
 ---
 
-## 6. Rules for every workstream
+## 6. Rules for every change
 
 1. **Vanilla ES modules + Three.js.** No TypeScript, no React, no extra runtime
    dependencies. `three` is the only dependency.
@@ -387,10 +455,12 @@ touch. Expected filenames are listed in `docs/AUDIO.md` (WS-H writes it).
 3. **Mobile performance is a hard requirement.** No per-frame allocation in
    update paths, no per-entity materials, use `InstancedMesh` for repeated
    geometry, and dispose geometries/materials in every `dispose()`.
-4. **Never edit a file you do not own.** Contract files are read-only.
-5. `npm run build` must pass when you finish. Run it.
+4. **Treat the contract files with care.** Additive changes are fine; renaming
+   or removing an export ripples across the whole project.
+5. `npm run verify` must pass when you finish — plus `npm run verify:maze` if you
+   touched `src/maze/`. Run them.
 6. Keep comments sparse and useful — explain *why*, not *what*.
-7. Write your module so it works standalone: no reaching into globals, no
-   implicit ordering assumptions beyond the documented API.
-8. When you finish, report: files written, anything you had to deviate on, and
-   anything another workstream must know.
+7. Keep each module standalone: no reaching into globals, no implicit ordering
+   assumptions beyond the documented API.
+8. Record anything you deviated on, and any gotcha the next person would trip
+   over, in `docs/INTEGRATION.md`.

@@ -2,7 +2,7 @@
 //
 // createInput(targetEl) -> Input = { dir, consumeDir(), update(), destroy(), onPause(fn) }
 //
-// Integrator guidance (per docs/WORK-REMAINING.md WS-D brief):
+// Integrator guidance (see docs/SPEC.md §5, `src/game/input.js`):
 //   Read `input.dir` LIVE, every frame, and pass it as the `input` argument to
 //   player.update(dt, input, ctx). `dir` is a plain getter that always reflects
 //   the current requested direction and — by design — PERSISTS after the
