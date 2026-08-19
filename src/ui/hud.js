@@ -6,10 +6,27 @@
  * store events. `update(dt)` only advances animation toward the last-known
  * targets (count-up, bar easing) and touches the DOM solely when a displayed
  * value actually changes — it never re-reads the whole store state.
+ *
+ * The score block shows two numbers per rules.js's round-score model: "Score"
+ * is `state.bankedScore` (locked in from rounds already finished), "This
+ * round" is `state.roundScore` (this round's live, fluctuating contribution —
+ * opens high, drops as adventurers bank loot, climbs on dissolve chains/torch
+ * snuffs). `state.score`, the sum of the two, is what game-over/leaderboard
+ * read — this module never touches it directly.
  */
 
 import { on, EVENTS, state, setScreen } from '../state/store.js';
 import { STARTING_LIVES, DRIED_WARNING_TIME } from '../config.js';
+
+// Loot bar reddens continuously with the ratio rather than jumping between a
+// couple of fixed colors, then pulses + shakes once it's close enough to the
+// loss condition to actually be alarming.
+const LOOT_CRITICAL_RATIO = 0.85;
+function lootColorForRatio(ratio) {
+  const hue = 48 - ratio * 44; // gold -> orange -> red
+  const light = 58 - ratio * 12;
+  return `hsl(${hue}deg 90% ${light}%)`;
+}
 
 export function createHud(root) {
   const el = document.createElement('div');
@@ -19,6 +36,10 @@ export function createHud(root) {
       <div class="hud-block hud-score-block">
         <span class="hud-label">Score</span>
         <span class="hud-score-value">0</span>
+        <div class="hud-round">
+          <span class="hud-round-label">This round</span>
+          <span class="hud-round-value">+0</span>
+        </div>
         <span class="hud-combo">COMBO ×2</span>
       </div>
       <div class="hud-block hud-level-block">
@@ -42,24 +63,31 @@ export function createHud(root) {
   root.appendChild(el);
 
   const scoreValueEl = el.querySelector('.hud-score-value');
+  const roundEl = el.querySelector('.hud-round');
+  const roundValueEl = el.querySelector('.hud-round-value');
   const comboEl = el.querySelector('.hud-combo');
   const levelValueEl = el.querySelector('.hud-level-value');
   const livesEl = el.querySelector('.hud-lives');
   const lootFillEl = el.querySelector('.hud-loot-fill');
   const lootPctEl = el.querySelector('.hud-loot-pct');
-  const lootBarEl = el.querySelector('.hud-loot-bar');
+  const lootWrapEl = el.querySelector('.hud-loot-wrap');
   const driedWrapEl = el.querySelector('.hud-dried-wrap');
   const driedFillEl = el.querySelector('.hud-dried-fill');
   const pauseBtn = el.querySelector('.hud-pause-btn');
 
   // --- animation state -------------------------------------------------
-  let displayedScore = 0;
+  let displayedScore = 0; // banked (locked-in) score
   let targetScore = 0;
   let shownScore = -1; // last painted integer, to skip redundant DOM writes
+
+  let displayedRound = 0; // live round score
+  let targetRound = 0;
+  let shownRound = null; // last painted integer; null forces the first paint
 
   let displayedLoot = 0; // eased 0..1
   let targetLoot = 0;
   let shownLootPct = -1;
+  let lastLootCritical = false;
 
   let driedTotal = 0; // seconds captured at DRIED_STARTED, for ratio math
   let lastDriedBlink = false;
@@ -87,8 +115,18 @@ export function createHud(root) {
     renderLives(state.lives ?? STARTING_LIVES);
   }
 
+  function flashRound(dir) {
+    roundEl.classList.remove('flash-up', 'flash-down');
+    void roundEl.offsetWidth; // restart the CSS animation on repeated flashes
+    roundEl.classList.add(dir);
+  }
+
   function syncScoreTarget() {
-    targetScore = state.score ?? 0;
+    targetScore = state.bankedScore ?? 0;
+    const nextRound = state.roundScore ?? 0;
+    if (nextRound !== targetRound) flashRound(nextRound > targetRound ? 'flash-up' : 'flash-down');
+    targetRound = nextRound;
+    roundEl.classList.toggle('is-negative', targetRound < 0);
   }
 
   function syncLootTarget() {
@@ -112,12 +150,19 @@ export function createHud(root) {
     targetScore = 0;
     shownScore = -1;
     scoreValueEl.textContent = '0';
+    displayedRound = 0;
+    targetRound = 0;
+    shownRound = null;
+    roundValueEl.textContent = '+0';
+    roundEl.classList.remove('flash-up', 'flash-down', 'is-negative');
     displayedLoot = 0;
     targetLoot = 0;
     shownLootPct = -1;
+    lastLootCritical = false;
     lootFillEl.style.width = '0%';
+    lootFillEl.style.background = '';
     lootPctEl.textContent = '0%';
-    lootBarEl.classList.remove('is-warn', 'is-danger');
+    lootWrapEl.classList.remove('is-critical');
     driedWrapEl.classList.remove('is-visible', 'is-blinking');
     lastCombo = -1;
     comboEl.classList.remove('is-visible');
@@ -174,7 +219,7 @@ export function createHud(root) {
   syncLootTarget();
 
   function update() {
-    // score count-up
+    // banked-score count-up
     if (displayedScore !== targetScore) {
       const diff = targetScore - displayedScore;
       const step = diff * 0.18 + Math.sign(diff) * 0.5;
@@ -187,7 +232,21 @@ export function createHud(root) {
       }
     }
 
-    // loot bar easing
+    // round-score count-up — same easing, signed display
+    if (shownRound === null || displayedRound !== targetRound) {
+      const diff = targetRound - displayedRound;
+      const step = diff * 0.18 + Math.sign(diff) * 0.5;
+      displayedRound += Math.abs(step) > Math.abs(diff) ? diff : step;
+      if (Math.abs(targetRound - displayedRound) < 0.6) displayedRound = targetRound;
+      const shown = Math.round(displayedRound);
+      if (shown !== shownRound) {
+        shownRound = shown;
+        roundValueEl.textContent = `${shown >= 0 ? '+' : '−'}${Math.abs(shown).toLocaleString()}`;
+      }
+    }
+
+    // loot bar easing — background reddens continuously with the ratio;
+    // is-critical (shake + pulse) only kicks in once it's genuinely alarming
     if (Math.abs(displayedLoot - targetLoot) > 0.001) {
       displayedLoot += (targetLoot - displayedLoot) * 0.15;
       if (Math.abs(displayedLoot - targetLoot) < 0.002) displayedLoot = targetLoot;
@@ -196,8 +255,12 @@ export function createHud(root) {
         shownLootPct = pct;
         lootFillEl.style.width = pct + '%';
         lootPctEl.textContent = pct + '%';
-        lootBarEl.classList.toggle('is-warn', displayedLoot >= 0.7 && displayedLoot < 0.9);
-        lootBarEl.classList.toggle('is-danger', displayedLoot >= 0.9);
+      }
+      lootFillEl.style.background = lootColorForRatio(displayedLoot);
+      const critical = displayedLoot >= LOOT_CRITICAL_RATIO;
+      if (critical !== lastLootCritical) {
+        lastLootCritical = critical;
+        lootWrapEl.classList.toggle('is-critical', critical);
       }
     }
 

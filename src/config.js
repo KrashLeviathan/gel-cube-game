@@ -84,11 +84,22 @@ export const DISSOLVE_SCORES = [200, 400, 800, 1600, 3200];
 export const SCORE_PER_RECOVERED_COIN = 15;
 /** Flat bonus for clearing a level. */
 export const LEVEL_CLEAR_BONUS = 1000;
-/** Bonus per coin the adventurers never managed to bank. */
+/** Bonus per coin the adventurers never managed to bank, AND the per-coin cost
+ *  applied the instant a coin actually banks. rules.js's live "round score"
+ *  opens each level at `coinsTotal * SCORE_PER_UNBANKED_COIN` and pays this
+ *  same rate out in real time as coins bank, so by the time a level ends the
+ *  running total already equals `unbanked * SCORE_PER_UNBANKED_COIN` — the
+ *  old lump-sum bonus, just paid continuously instead of once at the end. One
+ *  constant, reused both directions, keeps that identity exact. */
 export const SCORE_PER_UNBANKED_COIN = 10;
 
 /** Seconds within which consecutive dissolves keep the combo chain alive. */
 export const COMBO_WINDOW = 6.0;
+
+/** Score awarded for extinguishing a torch by walking the cube past it. */
+export const SCORE_PER_TORCH_SNUFFED = 40;
+/** Distance (tiles, world units) within which the cube snuffs a torch. */
+export const TORCH_SNUFF_DIST = 0.7;
 
 // ---------------------------------------------------------------------------
 // Difficulty

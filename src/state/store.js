@@ -26,6 +26,8 @@ export const EVENTS = {
   // moment-to-moment
   SCORE_CHANGED: 'score:changed',
   LOOT_CHANGED: 'loot:changed',
+  SCORE_POPUP: 'score:popup',
+  TORCH_SNUFFED: 'torch:snuffed',
   DRIED_STARTED: 'dried:started',
   DRIED_ENDED: 'dried:ended',
   ADVENTURER_DISSOLVED: 'adventurer:dissolved',
@@ -49,6 +51,10 @@ export const state = {
 
   // per-run
   score: 0,
+  /** Locked-in total from rounds already finished (folded in at LEVEL_STARTED). */
+  bankedScore: 0,
+  /** Live score for the round in progress. `score` is always `bankedScore + roundScore`. */
+  roundScore: 0,
   lives: STARTING_LIVES,
   level: 1,
   /** true between RUN_STARTED and RUN_OVER */
@@ -119,6 +125,8 @@ export function setScreen(screen) {
 /** Reset per-run counters. Called by rules.js when a new run begins. */
 export function resetRun() {
   state.score = 0;
+  state.bankedScore = 0;
+  state.roundScore = 0;
   state.lives = STARTING_LIVES;
   state.level = 1;
   state.combo = 0;

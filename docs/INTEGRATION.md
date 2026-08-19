@@ -408,3 +408,98 @@ audio needs. `state.paused` (set by `loop.js`) is worth checking before
 starting any one-shot sfx that shouldn't play while paused, though the sim
 loop itself already stops calling `rules.update()` while paused so no new
 gameplay events will fire during that window regardless.
+
+---
+
+## Round-score HUD + torch scoring — landed
+
+Files: `src/game/rules.js`, `src/game/levels.js`, `src/render/torches.js`,
+`src/ui/hud.js`, `src/ui/scorePopups.js` (new), `src/main.js`,
+`src/state/store.js`, `src/config.js`.
+
+### ⚠️ `hud.update()` was dead code — this is why Score/Loot Secured looked broken
+
+Before this pass, `main.js` never called `hud.update()` anywhere in its render
+loop. `hud.js` only writes the score number, loot-bar width/color, dried
+countdown and combo badge to the DOM **inside** `update()` — the `on(...)`
+listeners only ever set the `target*` variables, never touch the DOM. So the
+whole dynamic HUD was frozen at its initial paint for the entire history of
+this feature; the user-reported "Score and Loot Secured look like they don't
+do anything" was a real, literal bug, not a perception issue. Fixed by adding
+`hud.update();` alongside `fx.update(dt)` in `main.js`'s `render()`. If you
+add another store-driven HUD widget, remember its DOM write has to happen
+inside `update()`, and `update()` has to actually be called somewhere.
+
+### Score model: `score = bankedScore + roundScore`
+
+`state.bankedScore` is the locked-in total from rounds already finished.
+`state.roundScore` is the round in progress: it opens at
+`coinsTotal * SCORE_PER_UNBANKED_COIN` (see the comment on that constant in
+`config.js` for why one constant drives both the opening bonus and the
+per-coin bank penalty) and moves up/down in real time as the round plays out.
+`rules.js`'s `awardScore()` is the only place either field changes — it keeps
+`state.score` in sync every time, so `screens.js`/`leaderboard.js` (which
+still just read `state.score`) needed **no changes** for game-over/leaderboard
+to keep working.
+
+`startLevel()` folds the previous round into the bank (`bankedScore =
+state.score` at that point) before opening the new round — this runs
+identically whether the level transition was clear-and-advance or
+fail-and-retry-same-level, so a failed round's partial (or even negative, if
+the party out-banked what the cube clawed back) contribution is preserved,
+not discarded.
+
+Verified directly (not just by reading the code): a standalone `rules`
+instance built with `createRules({ scene: new THREE.Scene() })` and driven
+with `rules.update(dt, DIR_NONE)` in a tight loop, run from the browser
+console — this shares the same `state`/`listeners` singletons as the live
+page (ES module caching), so it's a faithful exercise of the production path
+without waiting on real wall-clock gameplay. Confirmed: opening bonus exactly
+equals `coinsTotal * SCORE_PER_UNBANKED_COIN`; banking N coins decrements
+`roundScore` by exactly `N * SCORE_PER_UNBANKED_COIN`; a level failure emits
+`LEVEL_FAILED` with `score` equal to the round's ending value, then the
+retry's `LEVEL_STARTED` shows that same value as the new `bankedScore` with
+`roundScore` reset to 0.
+
+### Torch snuffing: how rules.js gets torch positions without touching render/
+
+`rules.js` still never reaches into `level.torches` (the render object) or
+any other view — see the module header comment. Torch tile positions are
+plain data instead: `torches.js` exports `pickTorchSpots()` (already existed,
+just newly exported) and `getTorchSpots(maze)` (wraps the seed derivation),
+plus a pure `torchMountPosition(spot)` for the world-space math. `levels.js`
+calls `getTorchSpots(maze)` **once** and hands the identical array to both
+`buildTorches(scene, maze, spots)` (the visual) and the level bundle's new
+`torchPositions` field (`{col,row,x,z}[]`, plain data) — so index _i_ means
+the same torch on both sides without either side recomputing the deterministic
+spot-picking independently. `rules.js` reads `level.torchPositions` the same
+way it already reads `level.maze`/`level.coinsTotal` (plain level-bundle data,
+not a render call), does its own proximity check against the cube each frame,
+and on a hit emits `TORCH_SNUFFED {index, col, row}` — `main.js` is what turns
+that into `level.torches.snuff(index)` plus an `fx.sparkle()`, matching every
+other render-side reaction in this file (`ADVENTURER_DISSOLVED`→
+`fx.dissolveBurst`, etc).
+
+`torches.js`'s light-pool assignment loop had a latent bug this exposed: if
+the active torch count ever drops below the pool size, an unassigned
+`PointLight` kept whatever `visible`/position it had from the previous frame
+instead of being turned off. Not reachable before (torch count never dropped
+below the pool size), but snuffing torches makes it reachable, so the
+assignment loop now explicitly hides an unassigned light each frame.
+
+### New store surface (additive)
+
+- `state.bankedScore`, `state.roundScore` (state)
+- `EVENTS.SCORE_POPUP` — `{ amount, x, z }`, one per scoring event (dissolve
+  chain, banked-loot penalty, torch snuff, level-clear bonus); `amount`'s sign
+  is what `scorePopups.js` uses to color it, no separate "kind" field
+- `EVENTS.TORCH_SNUFFED` — `{ index, col, row }`
+
+### `src/ui/scorePopups.js` — new, WS-G-shaped
+
+Pooled DOM nodes (not a Three.js sprite/particle) projected from world space
+via a single reused `THREE.Vector3.project(camera)` each frame — text stays
+crisp and it's simpler than a canvas-texture sprite for a handful of
+concurrent popups. Mounted into `uiRoot` alongside the HUD; `main.js` owns
+`scorePopups.update(dt, sceneCtx.camera)` in `render()` and resets the pool on
+`LEVEL_STARTED` the same way `fx.reset()`/`slimeTrail.reset()` already do.

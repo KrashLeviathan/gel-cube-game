@@ -59,7 +59,7 @@ function isCorridor(t) {
 }
 
 /** Wall tiles with a corridor-facing side, deterministically thinned to a spread subset. */
-function pickTorchSpots(maze, seed) {
+export function pickTorchSpots(maze, seed) {
   const candidates = [];
   for (let row = 0; row < maze.rows; row++) {
     for (let col = 0; col < maze.cols; col++) {
@@ -99,6 +99,24 @@ function pickTorchSpots(maze, seed) {
     .slice(0, MAX_COUNT);
 }
 
+/** Same deterministic spot list buildTorches() would compute, exposed so
+ *  levels.js can hand identical spots to both the visual and the game-logic
+ *  side (rules.js needs torch tile positions for the snuff check, but never
+ *  touches this render module directly — see docs/INTEGRATION.md). */
+export function getTorchSpots(maze) {
+  const seed = maze.seed >>> 0 || 1;
+  return pickTorchSpots(maze, seed);
+}
+
+/** World-space mount point for a torch spot — pure math, no scene access. */
+export function torchMountPosition(spot) {
+  const { dc, dr } = DIRS[spot.dir];
+  return {
+    x: worldX(spot.col) + dc * OUTWARD,
+    z: worldZ(spot.row) + dr * OUTWARD,
+  };
+}
+
 function buildBracketParts(x, z, angle, parts) {
   const plate = new THREE.BoxGeometry(0.22, 0.3, 0.05);
   paintUniform(plate, BRACKET_COLOR_DARK);
@@ -136,28 +154,26 @@ function buildFlameTemplate() {
   return merged;
 }
 
-export function buildTorches(scene, maze) {
+export function buildTorches(scene, maze, spots = getTorchSpots(maze)) {
   const group = new THREE.Group();
   group.name = 'torches';
   scene.add(group);
 
   const seed = maze.seed >>> 0 || 1;
-  const spots = pickTorchSpots(maze, seed);
 
   const bracketParts = [];
   const torchData = [];
   for (const spot of spots) {
-    const { dc, dr } = DIRS[spot.dir];
     const angle = angleForDir(spot.dir);
     const baseX = worldX(spot.col);
     const baseZ = worldZ(spot.row);
-    const mountX = baseX + dc * OUTWARD;
-    const mountZ = baseZ + dr * OUTWARD;
+    const { x: mountX, z: mountZ } = torchMountPosition(spot);
     buildBracketParts(baseX, baseZ, angle, bracketParts);
     torchData.push({
       pos: new THREE.Vector3(mountX, MOUNT_Y + 0.12, mountZ),
       phase: hash01(seed, spot.col, spot.row, spot.dir, 91) * Math.PI * 2,
       phase2: hash01(seed, spot.col, spot.row, spot.dir, 92) * Math.PI * 2,
+      snuffed: false,
     });
   }
 
@@ -237,6 +253,27 @@ export function buildTorches(scene, maze) {
 
       for (let i = 0; i < count; i++) {
         const t = torchData[i];
+
+        if (t.snuffed) {
+          if (flameMesh) {
+            dummy.position.set(t.pos.x, -999, t.pos.z);
+            dummy.scale.set(0, 0, 0);
+            dummy.updateMatrix();
+            flameMesh.setMatrixAt(i, dummy.matrix);
+          }
+          if (glowMesh) {
+            dummy.position.set(t.pos.x, -999, t.pos.z);
+            dummy.scale.set(0, 0, 0);
+            dummy.updateMatrix();
+            glowMesh.setMatrixAt(i, dummy.matrix);
+          }
+          // Never eligible for the light pool: pin it out of range and
+          // pre-mark it "assigned" so the pick loop below skips it.
+          distScratch[i] = Infinity;
+          activeFlags[i] = 1;
+          continue;
+        }
+
         const flicker =
           0.78 +
           0.14 * Math.sin(elapsed * 6.6 + t.phase) +
@@ -280,6 +317,9 @@ export function buildTorches(scene, maze) {
       }
 
       // Assign the pooled real lights to the `poolSize` nearest-to-focus torches.
+      // Snuffing torches can drop the active count below poolSize, so a light
+      // with no candidate left this frame must be explicitly hidden rather
+      // than left showing wherever it was last assigned.
       for (let k = 0; k < poolSize; k++) {
         let best = -1;
         let bestD = Infinity;
@@ -290,14 +330,22 @@ export function buildTorches(scene, maze) {
             best = i;
           }
         }
-        if (best < 0) break;
-        activeFlags[best] = 1;
         const light = lightPool[k];
+        if (best < 0) {
+          light.visible = false;
+          continue;
+        }
+        activeFlags[best] = 1;
         const t = torchData[best];
         light.visible = true;
         light.position.set(t.pos.x, t.pos.y, t.pos.z);
         light.intensity = 1.1 * t.flicker;
       }
+    },
+    /** Extinguish torch `index` permanently for this level (idempotent). */
+    snuff(index) {
+      const t = torchData[index];
+      if (t) t.snuffed = true;
     },
     dispose() {
       scene.remove(group);
