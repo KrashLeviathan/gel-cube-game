@@ -203,7 +203,8 @@ export function createHud(root) {
 
     // dried countdown
     if (state.dried && driedWrapEl.classList.contains('is-visible')) {
-      const ratio = driedTotal > 0 ? Math.max(0, Math.min(1, state.driedRemaining / driedTotal)) : 0;
+      const ratio =
+        driedTotal > 0 ? Math.max(0, Math.min(1, state.driedRemaining / driedTotal)) : 0;
       driedFillEl.style.width = ratio * 100 + '%';
       const blink = state.driedRemaining <= DRIED_WARNING_TIME;
       if (blink !== lastDriedBlink) {

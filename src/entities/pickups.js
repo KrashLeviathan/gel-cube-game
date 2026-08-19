@@ -23,7 +23,15 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { TILE_FLOOR } from '../config.js';
-import { idx, worldX, worldZ, wrapCol, isWalkable, forEachNeighbor, tileDistance } from '../maze/grid.js';
+import {
+  idx,
+  worldX,
+  worldZ,
+  wrapCol,
+  isWalkable,
+  forEachNeighbor,
+  tileDistance,
+} from '../maze/grid.js';
 
 const COIN_Y = 0.055;
 const COIN_RADIUS = 0.16;
@@ -204,19 +212,28 @@ function selectItemSpots(spots, count) {
 
   const remaining = spots.slice();
   // deterministic seed: the spot farthest from the maze center.
-  let cx = 0, cz = 0;
-  for (const s of spots) { cx += s.col; cz += s.row; }
+  let cx = 0,
+    cz = 0;
+  for (const s of spots) {
+    cx += s.col;
+    cz += s.row;
+  }
   cx /= spots.length;
   cz /= spots.length;
-  let seedIdx = 0, seedDist = -1;
+  let seedIdx = 0,
+    seedDist = -1;
   for (let i = 0; i < remaining.length; i++) {
     const d = tileDistance(remaining[i].col, remaining[i].row, Math.round(cx), Math.round(cz));
-    if (d > seedDist) { seedDist = d; seedIdx = i; }
+    if (d > seedDist) {
+      seedDist = d;
+      seedIdx = i;
+    }
   }
   const chosen = [remaining.splice(seedIdx, 1)[0]];
 
   while (chosen.length < count && remaining.length) {
-    let bestIdx = -1, bestMinDist = -1;
+    let bestIdx = -1,
+      bestMinDist = -1;
     for (let i = 0; i < remaining.length; i++) {
       const cand = remaining[i];
       let minDist = Infinity;
@@ -224,7 +241,10 @@ function selectItemSpots(spots, count) {
         const d = tileDistance(cand.col, cand.row, c.col, c.row);
         if (d < minDist) minDist = d;
       }
-      if (minDist > bestMinDist) { bestMinDist = minDist; bestIdx = i; }
+      if (minDist > bestMinDist) {
+        bestMinDist = minDist;
+        bestIdx = i;
+      }
     }
     chosen.push(remaining.splice(bestIdx, 1)[0]);
   }
@@ -240,7 +260,7 @@ export function createPickups(scene, maze, itemCount) {
   group.name = 'pickups';
   scene.add(group);
 
-  const seed = (maze.seed >>> 0) || 1;
+  const seed = maze.seed >>> 0 || 1;
   const cols = maze.cols;
   const rows = maze.rows;
   const cellCount = cols * rows;
@@ -259,7 +279,11 @@ export function createPickups(scene, maze, itemCount) {
   const occ = new Uint8Array(cellCount);
 
   const coinGeo = buildCoinGeometry();
-  const coinMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.75 });
+  const coinMat = new THREE.MeshStandardMaterial({
+    vertexColors: true,
+    roughness: 0.35,
+    metalness: 0.75,
+  });
   const coinMesh = coinCount ? new THREE.InstancedMesh(coinGeo, coinMat, coinCount) : null;
   if (coinMesh) {
     coinMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -409,7 +433,10 @@ export function createPickups(scene, maze, itemCount) {
   // -- magic items ----------------------------------------------------------
   const chosenSpots = selectItemSpots(maze.itemSpots || [], itemCount | 0);
   const items = chosenSpots.map((spot, i) => {
-    const type = ITEM_TYPES[Math.floor(hash01(seed, spot.col, spot.row, 401) * ITEM_TYPES.length) % ITEM_TYPES.length];
+    const type =
+      ITEM_TYPES[
+        Math.floor(hash01(seed, spot.col, spot.row, 401) * ITEM_TYPES.length) % ITEM_TYPES.length
+      ];
     const propGeo = ITEM_GEO_BUILDERS[type]();
     const propMat = new THREE.MeshStandardMaterial({
       vertexColors: true,
@@ -498,7 +525,8 @@ export function createPickups(scene, maze, itemCount) {
       }
       if (it.taken) continue;
       it.t += dt;
-      it.itemGroup.position.y = Math.sin(it.t * ITEM_BOB_FREQ + it.phase) * ITEM_BOB_AMP + ITEM_BOB_AMP;
+      it.itemGroup.position.y =
+        Math.sin(it.t * ITEM_BOB_FREQ + it.phase) * ITEM_BOB_AMP + ITEM_BOB_AMP;
       it.propMesh.rotation.y += dt * ITEM_SPIN_SPEED;
       const pulse = 0.6 + 0.4 * Math.sin(it.t * ITEM_PULSE_FREQ + it.phase);
       it.propMat.emissiveIntensity = 0.4 + 0.5 * pulse;

@@ -43,8 +43,12 @@ function heapPush(size, node, cost) {
   while (i > 0) {
     const p = (i - 1) >> 1;
     if (heapCost[p] <= heapCost[i]) break;
-    const tn = heapNode[p]; heapNode[p] = heapNode[i]; heapNode[i] = tn;
-    const tc = heapCost[p]; heapCost[p] = heapCost[i]; heapCost[i] = tc;
+    const tn = heapNode[p];
+    heapNode[p] = heapNode[i];
+    heapNode[i] = tn;
+    const tc = heapCost[p];
+    heapCost[p] = heapCost[i];
+    heapCost[i] = tc;
     i = p;
   }
   return size + 1;
@@ -64,8 +68,12 @@ function heapPop(size) {
     if (l < size && heapCost[l] < heapCost[smallest]) smallest = l;
     if (r < size && heapCost[r] < heapCost[smallest]) smallest = r;
     if (smallest === i) break;
-    const tn = heapNode[smallest]; heapNode[smallest] = heapNode[i]; heapNode[i] = tn;
-    const tc = heapCost[smallest]; heapCost[smallest] = heapCost[i]; heapCost[i] = tc;
+    const tn = heapNode[smallest];
+    heapNode[smallest] = heapNode[i];
+    heapNode[i] = tn;
+    const tc = heapCost[smallest];
+    heapCost[smallest] = heapCost[i];
+    heapCost[i] = tc;
     i = smallest;
   }
   return { node, cost, size };
@@ -113,7 +121,10 @@ function search(maze, startCol, startRow, isGoal, opts) {
         if (visitedGen[ni] === gen) return;
         visitedGen[ni] = gen;
         cameFrom[ni] = cur;
-        if (isGoal(nc, nr)) { found = ni; return; }
+        if (isGoal(nc, nr)) {
+          found = ni;
+          return;
+        }
         bfsQueue[qt++] = ni;
       });
       if (found !== -1) return { startIdx, foundIdx: found };

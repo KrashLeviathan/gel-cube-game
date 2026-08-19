@@ -7,7 +7,16 @@
  */
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { TILE, WALL_HEIGHT, PALETTE, TILE_WALL, TILE_FLOOR, TILE_LAIR, TILE_LAIR_DOOR, TILE_EXIT } from '../config.js';
+import {
+  TILE,
+  WALL_HEIGHT,
+  PALETTE,
+  TILE_WALL,
+  TILE_FLOOR,
+  TILE_LAIR,
+  TILE_LAIR_DOOR,
+  TILE_EXIT,
+} from '../config.js';
 import { worldX, worldZ, idx, tileAt, forEachNeighbor } from '../maze/grid.js';
 
 // Colors that don't have a PALETTE entry of their own.
@@ -118,7 +127,7 @@ function buildWalls(group, maze, seed) {
       paintTopSide(
         block,
         jitterColor(PALETTE.wallTop, 0.14, hash01(seed, col, row, 2)),
-        jitterColor(PALETTE.wallSide, 0.14, hash01(seed, col, row, 3))
+        jitterColor(PALETTE.wallSide, 0.14, hash01(seed, col, row, 3)),
       );
       block.translate(x, blockYMin + blockH / 2, z);
       parts.push(block);
@@ -127,7 +136,11 @@ function buildWalls(group, maze, seed) {
 
   const merged = mergeAndDispose(parts);
   if (!merged) return;
-  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0.04 });
+  const mat = new THREE.MeshStandardMaterial({
+    vertexColors: true,
+    roughness: 0.92,
+    metalness: 0.04,
+  });
   const mesh = new THREE.Mesh(merged, mat);
   mesh.name = 'walls';
   group.add(mesh);
@@ -182,7 +195,14 @@ function createFlagstoneTexture(seed) {
       const inset = 2 + hash01(seed, gx, gy, 43) * 2.5;
       const jx = (hash01(seed, gx, gy, 44) - 0.5) * 3;
       const jy = (hash01(seed, gx, gy, 45) - 0.5) * 3;
-      drawStone(ctx, gx * cell + inset + jx, gy * cell + inset + jy, cell - inset * 2, cell - inset * 2, cssColor(stone));
+      drawStone(
+        ctx,
+        gx * cell + inset + jx,
+        gy * cell + inset + jy,
+        cell - inset * 2,
+        cell - inset * 2,
+        cssColor(stone),
+      );
     }
   }
 
@@ -530,7 +550,10 @@ function buildDebris(group, maze, seed) {
       if (maze.tiles[idx(col, row)] !== TILE_FLOOR) continue;
       const roll = hash01(seed, col, row, 201);
       if (roll >= DEBRIS_DENSITY) continue;
-      const typeIdx = Math.min(templates.length - 1, Math.floor(hash01(seed, col, row, 202) * templates.length));
+      const typeIdx = Math.min(
+        templates.length - 1,
+        Math.floor(hash01(seed, col, row, 202) * templates.length),
+      );
       buckets[typeIdx].push({ col, row });
     }
   }
@@ -542,7 +565,11 @@ function buildDebris(group, maze, seed) {
       geo.dispose();
       return;
     }
-    const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0.05 });
+    const mat = new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      roughness: 0.95,
+      metalness: 0.05,
+    });
     const mesh = new THREE.InstancedMesh(geo, mat, spots.length);
     mesh.name = `debris${typeIdx}`;
     spots.forEach((spot, i) => {
@@ -571,7 +598,7 @@ export function buildDungeon(scene, maze) {
   group.name = 'dungeon';
   scene.add(group);
 
-  const seed = (maze.seed >>> 0) || 1;
+  const seed = maze.seed >>> 0 || 1;
 
   buildFloor(group, maze, seed);
   buildTunnelFade(group, maze);

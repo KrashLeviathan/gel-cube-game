@@ -144,7 +144,12 @@ export function createInput(targetEl) {
   }
 
   function maybeVibrate() {
-    if (state.settings && state.settings.haptics && typeof navigator !== 'undefined' && navigator.vibrate) {
+    if (
+      state.settings &&
+      state.settings.haptics &&
+      typeof navigator !== 'undefined' &&
+      navigator.vibrate
+    ) {
       navigator.vibrate(VIBRATE_MS);
     }
   }

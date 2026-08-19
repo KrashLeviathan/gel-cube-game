@@ -164,10 +164,20 @@ function buildEdges(nodes) {
       if (!a.valid || !b.valid) continue;
       let ok = true;
       for (let c = a.col + 1; c < b.col; c++) {
-        if (inLairBox(c, a.row)) { ok = false; break; }
+        if (inLairBox(c, a.row)) {
+          ok = false;
+          break;
+        }
       }
       if (ok) {
-        edges.push({ a: j * nCols + i, b: j * nCols + i + 1, dir: 'h', row: a.row, c0: a.col, c1: b.col });
+        edges.push({
+          a: j * nCols + i,
+          b: j * nCols + i + 1,
+          dir: 'h',
+          row: a.row,
+          c0: a.col,
+          c1: b.col,
+        });
       }
     }
   }
@@ -178,10 +188,20 @@ function buildEdges(nodes) {
       if (!a.valid || !b.valid) continue;
       let ok = true;
       for (let r = a.row + 1; r < b.row; r++) {
-        if (inLairBox(a.col, r)) { ok = false; break; }
+        if (inLairBox(a.col, r)) {
+          ok = false;
+          break;
+        }
       }
       if (ok) {
-        edges.push({ a: j * nCols + i, b: (j + 1) * nCols + i, dir: 'v', col: a.col, r0: a.row, r1: b.row });
+        edges.push({
+          a: j * nCols + i,
+          b: (j + 1) * nCols + i,
+          dir: 'v',
+          col: a.col,
+          r0: a.row,
+          r1: b.row,
+        });
       }
     }
   }
@@ -207,7 +227,9 @@ function buildAdjacency(nodeCount, edges) {
 
 /** An edge's gap is always 2 tiles (uniform spacing-3 lattice); check one to know if carved. */
 function edgeCarved(tiles, e) {
-  return e.dir === 'h' ? tiles[idx(e.c0 + 1, e.row)] !== TILE_WALL : tiles[idx(e.col, e.r0 + 1)] !== TILE_WALL;
+  return e.dir === 'h'
+    ? tiles[idx(e.c0 + 1, e.row)] !== TILE_WALL
+    : tiles[idx(e.col, e.r0 + 1)] !== TILE_WALL;
 }
 
 /** Randomized-Kruskal spanning tree + a random subset of extra edges for loops. */
@@ -235,7 +257,10 @@ function buildLattice(tiles, rand) {
     const node = nodes[ni];
     if (!node.valid) continue;
     if (tileDegree(tiles, node.col, node.row) > 1) continue;
-    const candidates = shuffle(adj[ni].filter((e) => !edgeCarved(tiles, e)), rand);
+    const candidates = shuffle(
+      adj[ni].filter((e) => !edgeCarved(tiles, e)),
+      rand,
+    );
     if (candidates.length) carveEdge(tiles, candidates[0]);
   }
 
@@ -261,7 +286,7 @@ function ensureTunnelConnections(tiles, restEdges, rand) {
   if (countLinked() >= MIN_TUNNEL_LINKS) return;
   const candidates = shuffle(
     restEdges.filter((e) => e.dir === 'v' && e.r0 === TUNNEL_ABOVE && e.r1 === TUNNEL_BELOW),
-    rand
+    rand,
   );
   for (const e of candidates) {
     if (countLinked() >= MIN_TUNNEL_LINKS) break;
@@ -466,7 +491,10 @@ function deriveMazeMeta(tiles, seed) {
   const spawnCandidates = scanTiles(tiles, TILE_LAIR);
   const ccol = lair.col + lair.cols / 2;
   const crow = lair.row + lair.rows / 2;
-  let spawn = spawnCandidates[0] || { col: lair.col + Math.floor(lair.cols / 2), row: lair.row + Math.floor(lair.rows / 2) };
+  let spawn = spawnCandidates[0] || {
+    col: lair.col + Math.floor(lair.cols / 2),
+    row: lair.row + Math.floor(lair.rows / 2),
+  };
   let bestD = Infinity;
   for (const t of spawnCandidates) {
     const d = (t.col - ccol) ** 2 + (t.row - crow) ** 2;
@@ -482,7 +510,10 @@ function deriveMazeMeta(tiles, seed) {
   for (let r = 0; r < ROWS; r++) {
     let full = true;
     for (let c = 0; c < COLS; c++) {
-      if (tiles[idx(c, r)] !== TILE_TUNNEL) { full = false; break; }
+      if (tiles[idx(c, r)] !== TILE_TUNNEL) {
+        full = false;
+        break;
+      }
     }
     if (full) tunnelRows.push(r);
   }
@@ -490,7 +521,18 @@ function deriveMazeMeta(tiles, seed) {
   const advSpawns = pickAdvSpawns(tiles);
   const itemSpots = pickItemSpots(tiles, lair);
 
-  return { cols: COLS, rows: ROWS, tiles, lair, spawn, advSpawns, exits, tunnelRows, itemSpots, seed };
+  return {
+    cols: COLS,
+    rows: ROWS,
+    tiles,
+    lair,
+    spawn,
+    advSpawns,
+    exits,
+    tunnelRows,
+    itemSpots,
+    seed,
+  };
 }
 
 // ---------------------------------------------------------------------------

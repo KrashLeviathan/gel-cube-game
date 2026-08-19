@@ -5,7 +5,7 @@ Guidance for AI agents working in this repo.
 ## The project
 
 **Gelatinous Cube** — Pac-Man inverted, in a D&D dungeon. You are the ooze in the
-lair (the ghost house); the *adventurers* are the Pac-Men, scooping coins and
+lair (the ghost house); the _adventurers_ are the Pac-Men, scooping coins and
 hauling them to stairwells to bank. Dissolve them all to clear a level; if they
 bank the loot goal first you lose a life. A magic item taken by an adventurer
 **dries out** the cube — slow, shrivelled, vulnerable — and the party turns and
@@ -46,12 +46,12 @@ Verify changes yourself in the preview rather than asking the user to look.
 
 ## Read the docs in this order
 
-| Doc | What it is |
-|---|---|
-| [docs/SPEC.md](docs/SPEC.md) | The design contract: rules of play, coordinate system, and every module's public API. Start here. |
-| [docs/INTEGRATION.md](docs/INTEGRATION.md) | What each module *actually* built, plus the gotchas found while building. **Where it is more specific than SPEC.md, it wins.** Also the definitive table of every store event and exactly when it fires. |
-| [docs/AUDIO.md](docs/AUDIO.md) | The mp3 filename contract given to the user. Don't rename anything in it. |
-| [docs/DEPLOYMENT-INSTRUCTIONS.md](docs/DEPLOYMENT-INSTRUCTIONS.md) | Cloudflare setup, cutting a release, rollback. |
+| Doc                                                                | What it is                                                                                                                                                                                               |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [docs/SPEC.md](docs/SPEC.md)                                       | The design contract: rules of play, coordinate system, and every module's public API. Start here.                                                                                                        |
+| [docs/INTEGRATION.md](docs/INTEGRATION.md)                         | What each module _actually_ built, plus the gotchas found while building. **Where it is more specific than SPEC.md, it wins.** Also the definitive table of every store event and exactly when it fires. |
+| [docs/AUDIO.md](docs/AUDIO.md)                                     | The mp3 filename contract given to the user. Don't rename anything in it.                                                                                                                                |
+| [docs/DEPLOYMENT-INSTRUCTIONS.md](docs/DEPLOYMENT-INSTRUCTIONS.md) | Cloudflare setup, cutting a release, rollback.                                                                                                                                                           |
 
 The `WS-x` labels throughout the source and docs refer to the original parallel
 workstreams that built the game. Their file-ownership rules ("never edit a file
@@ -87,8 +87,8 @@ reacts to the screen change.
 
 Everything depends on these. Adding a constant, a state field or an event name is
 fine (additive only). Renaming or removing an export, or changing a signature, is
-a cross-cutting change — say so explicitly in your report. Changing a *tuning
-value* in `config.js` changes how the game plays: only do it when asked or when
+a cross-cutting change — say so explicitly in your report. Changing a _tuning
+value_ in `config.js` changes how the game plays: only do it when asked or when
 you have actually playtested the result, and record the reasoning in a comment
 next to the value (see `PACK_CAPACITY` for the house style).
 
@@ -172,7 +172,7 @@ unless the user asks for it.
 
 ## Style
 
-- Comments are sparse and explain *why*, not *what*. Follow the tone already in
+- Comments are sparse and explain _why_, not _what_. Follow the tone already in
   the source: a module header saying what the file is responsible for, and
   comments reserved for decisions a reader would otherwise second-guess.
 - When you change a documented contract or discover a gotcha the next agent would

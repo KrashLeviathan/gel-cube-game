@@ -117,7 +117,8 @@ function render(dt, alpha) {
     level.pickups.update(dt);
 
     const params = rules.getParams();
-    const driedRatio = params && params.driedDuration > 0 ? state.driedRemaining / params.driedDuration : 0;
+    const driedRatio =
+      params && params.driedDuration > 0 ? state.driedRemaining / params.driedDuration : 0;
 
     cubeView.update(dt, {
       dried: state.dried,

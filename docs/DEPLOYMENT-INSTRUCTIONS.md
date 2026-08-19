@@ -13,10 +13,10 @@ rather than a separate Cloudflare Pages project.
 
 CI/CD is handled by two GitHub Actions workflows:
 
-| Workflow | File | Trigger | Purpose |
-|---|---|---|---|
-| CI | [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | Every push to `main` and every PR into `main` | Installs deps, runs the maze verifier, and confirms the production build succeeds |
-| Deploy | [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) | Push of a tag matching `release-*` | Builds the game and publishes `dist/` to the `gelatinous-cube-game` Worker via [`wrangler deploy`](https://developers.cloudflare.com/workers/wrangler/commands/#deploy) |
+| Workflow | File                                                              | Trigger                                       | Purpose                                                                                                                                                                 |
+| -------- | ----------------------------------------------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CI       | [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)         | Every push to `main` and every PR into `main` | Installs deps, runs the maze verifier, and confirms the production build succeeds                                                                                       |
+| Deploy   | [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) | Push of a tag matching `release-*`            | Builds the game and publishes `dist/` to the `gelatinous-cube-game` Worker via [`wrangler deploy`](https://developers.cloudflare.com/workers/wrangler/commands/#deploy) |
 
 Nothing deploys automatically on every commit to `main` — deploys only happen
 when you push a tag named `release-*` (e.g. `release-1.0.0`, `release-2024-06-01`).
@@ -75,10 +75,10 @@ is shown in the right-hand sidebar. Copy it.
 
 In the GitHub repo, go to **Settings** → **Secrets and variables** → **Actions** → **New repository secret**, and add:
 
-| Secret name | Value |
-|---|---|
-| `CLOUDFLARE_API_TOKEN` | The token created in step 1.2 |
-| `CLOUDFLARE_ACCOUNT_ID` | The account ID from step 1.3 |
+| Secret name             | Value                         |
+| ----------------------- | ----------------------------- |
+| `CLOUDFLARE_API_TOKEN`  | The token created in step 1.2 |
+| `CLOUDFLARE_ACCOUNT_ID` | The account ID from step 1.3  |
 
 ---
 
@@ -168,7 +168,7 @@ npx wrangler deploy
   confirm the route/custom domain shown under the Worker's **Triggers** tab
   is still `gelatinous-cube-game.krashleviathan.com`, and that
   [`wrangler.toml`](../wrangler.toml)'s `name` still matches the Worker's
-  name exactly (a mismatch would deploy a *new*, differently named Worker
+  name exactly (a mismatch would deploy a _new_, differently named Worker
   instead of updating the existing one).
 - **Tag push didn't trigger a deploy** — the tag must match the glob
   `release-*` (e.g. `release-1.0.0`), and it must be pushed explicitly with

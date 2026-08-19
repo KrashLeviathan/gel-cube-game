@@ -66,7 +66,7 @@ function pickTorchSpots(maze, seed) {
       if (maze.tiles[idx(col, row)] !== TILE_WALL) continue;
       for (let dir = 0; dir < DIRS.length; dir++) {
         const { dc, dr } = DIRS[dir];
-        const nc = ((col + dc) % maze.cols + maze.cols) % maze.cols;
+        const nc = (((col + dc) % maze.cols) + maze.cols) % maze.cols;
         const nr = row + dr;
         if (nr < 0 || nr >= maze.rows) continue;
         if (!isCorridor(maze.tiles[idx(nc, nr)])) continue;
@@ -94,7 +94,9 @@ function pickTorchSpots(maze, seed) {
     if (chosen.length >= Math.min(MIN_COUNT, candidates.length) || spacing === 1) break;
     spacing--;
   }
-  return chosen.slice(0, Math.max(chosen.length, Math.min(TARGET_COUNT, candidates.length))).slice(0, MAX_COUNT);
+  return chosen
+    .slice(0, Math.max(chosen.length, Math.min(TARGET_COUNT, candidates.length)))
+    .slice(0, MAX_COUNT);
 }
 
 function buildBracketParts(x, z, angle, parts) {
@@ -139,7 +141,7 @@ export function buildTorches(scene, maze) {
   group.name = 'torches';
   scene.add(group);
 
-  const seed = (maze.seed >>> 0) || 1;
+  const seed = maze.seed >>> 0 || 1;
   const spots = pickTorchSpots(maze, seed);
 
   const bracketParts = [];
@@ -162,7 +164,11 @@ export function buildTorches(scene, maze) {
   if (bracketParts.length) {
     const bracketGeo = mergeGeometries(bracketParts, false);
     for (const p of bracketParts) p.dispose();
-    const bracketMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7, metalness: 0.3 });
+    const bracketMat = new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      roughness: 0.7,
+      metalness: 0.3,
+    });
     const bracketMesh = new THREE.Mesh(bracketGeo, bracketMat);
     bracketMesh.name = 'torchBrackets';
     group.add(bracketMesh);

@@ -76,7 +76,9 @@ instanced draw calls covering all burst types. No per-frame allocation.
 ### `cube.update(dt, opts)` — exact opts
 
 ```js
-{ dried, driedRatio, moveDir, speed, digesting, coinCount, driedSecondsLeft }
+{
+  (dried, driedRatio, moveDir, speed, digesting, coinCount, driedSecondsLeft);
+}
 ```
 
 - `coinCount` (default 0) — coins visibly absorbed; shows up to 12 settling
@@ -181,50 +183,54 @@ whoever reads this next.
 
 ```js
 // player.update(dt, inputDir, ctx) — called every fixed step while 'playing'
-inputDir = input.dir          // read LIVE every frame in main.js's step(), never consumeDir()
-ctx = { speed }               // speed = params.cubeSpeed
-                               //   × DRIED_SPEED_MULT   while state.dried
-                               //   × DIGEST_SPEED_MULT  while a digest timer is running
-                               // forced to 0 (and input ignored) during the post-respawn
-                               // RESPAWN_GRACE freeze
+inputDir = input.dir; // read LIVE every frame in main.js's step(), never consumeDir()
+ctx = { speed }; // speed = params.cubeSpeed
+//   × DRIED_SPEED_MULT   while state.dried
+//   × DIGEST_SPEED_MULT  while a digest timer is running
+// forced to 0 (and input ignored) during the post-respawn
+// RESPAWN_GRACE freeze
 
 // adventurer.update(dt, ctx) — built fresh every step from the live pickups instance
 ctx = {
   cube: { col: player.col, row: player.row, dried: state.dried },
-  hasCoinAt: level.pickups.hasCoinAt,        // passed straight through
-  takeCoinAt(col, row) {                     // wrapped one level deep only to also
-    const got = level.pickups.takeCoinAt(col, row);  // emit COIN_TAKEN and keep
-    if (got) { state.coinsOnFloor--; emit(EVENTS.COIN_TAKEN, {col,row}); }  // coinsOnFloor honest
+  hasCoinAt: level.pickups.hasCoinAt, // passed straight through
+  takeCoinAt(col, row) {
+    // wrapped one level deep only to also
+    const got = level.pickups.takeCoinAt(col, row); // emit COIN_TAKEN and keep
+    if (got) {
+      state.coinsOnFloor--;
+      emit(EVENTS.COIN_TAKEN, { col, row });
+    } // coinsOnFloor honest
     return got;
   },
-  items: level.pickups.items,                // passed straight through
-  takeItemAt: level.pickups.takeItemAt,      // passed straight through
-}
+  items: level.pickups.items, // passed straight through
+  takeItemAt: level.pickups.takeItemAt, // passed straight through
+};
 ```
 
 ### Events emitted, and exactly when
 
-| Event | Fired from | When |
-|---|---|---|
-| `SCREEN_CHANGED` | `store.setScreen()` | Every screen transition (home/playing/paused/gameover/leaderboard) |
-| `RUN_STARTED` | `rules.startRun()` | Right after `resetRun()`, before level 1 builds |
-| `LEVEL_STARTED` | `rules.startLevel()` | New level built (first level, cleared→next, failed→retry) |
-| `LEVEL_CLEARED` | `triggerLevelCleared()` | Last adventurer dissolved, after the clear bonus is awarded |
-| `LEVEL_FAILED` | `triggerLevelFailed()` | `coinsBanked >= lootGoal`, after the life decrement |
-| `LIFE_LOST` | `handleDriedContact()` | Dried cube touched by a living adventurer, after teleport-to-lair |
-| `SCORE_CHANGED` | `awardScore()` | Any score delta (kill combo, recovered coins, clear bonus, unbanked-coin bonus) |
-| `LOOT_CHANGED` | `handleAdventurerEvent('banked')` | Every time a pack is banked, after `state.coinsBanked` updates |
-| `DRIED_STARTED` | `handleAdventurerEvent('itemTaken')` | Magic item taken, dried timer armed to `params.driedDuration` |
-| `DRIED_ENDED` | `tickDried()` | `driedRemaining` reaches 0 |
-| `DRIED_WARNING` *(WS-F addition)* | `tickDried()` | `driedRemaining` first drops ≤ `DRIED_WARNING_TIME`, fires once per dried episode |
-| `ADVENTURER_DISSOLVED` | `handleKill()` | Every kill, payload includes `combo` and `spillCount` |
-| `ADVENTURER_BANKED` | `handleAdventurerEvent('banked')` | Same moment as `LOOT_CHANGED`, payload has `count/col/row/coinsBanked/lootGoal` |
-| `ITEM_TAKEN` | `handleAdventurerEvent('itemTaken')` | Same moment as `DRIED_STARTED`, payload has `col/row/itemType` |
-| `COIN_TAKEN` | the `takeCoinAt` wrapper in `buildAdventurerCtx()` | Every coin an adventurer picks up |
-| `DIGEST_STARTED` *(WS-F addition)* | `handleKill()` | Same moment as `ADVENTURER_DISSOLVED`, payload `{col,row}` — cube briefly slows (`DIGEST_SPEED_MULT`) |
-| `TUNNEL_WRAPPED` *(WS-F addition)* | `update()`, right after `player.update()` | The frame the cube's column crosses the wrap seam, payload `{x,z}` |
-| `RUN_OVER` | `triggerRunOver()` | Lives hit 0, payload `{score, level, qualifies}` before `setScreen('gameover')` |
-| `PAUSED` / `RESUMED` | `loop.js`'s `SCREEN_CHANGED` subscriber | `'playing'→'paused'` / `'paused'→'playing'` |
+| Event                              | Fired from                                         | When                                                                                                  |
+| ---------------------------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `SCREEN_CHANGED`                   | `store.setScreen()`                                | Every screen transition (home/playing/paused/gameover/leaderboard)                                    |
+| `RUN_STARTED`                      | `rules.startRun()`                                 | Right after `resetRun()`, before level 1 builds                                                       |
+| `LEVEL_STARTED`                    | `rules.startLevel()`                               | New level built (first level, cleared→next, failed→retry)                                             |
+| `LEVEL_CLEARED`                    | `triggerLevelCleared()`                            | Last adventurer dissolved, after the clear bonus is awarded                                           |
+| `LEVEL_FAILED`                     | `triggerLevelFailed()`                             | `coinsBanked >= lootGoal`, after the life decrement                                                   |
+| `LIFE_LOST`                        | `handleDriedContact()`                             | Dried cube touched by a living adventurer, after teleport-to-lair                                     |
+| `SCORE_CHANGED`                    | `awardScore()`                                     | Any score delta (kill combo, recovered coins, clear bonus, unbanked-coin bonus)                       |
+| `LOOT_CHANGED`                     | `handleAdventurerEvent('banked')`                  | Every time a pack is banked, after `state.coinsBanked` updates                                        |
+| `DRIED_STARTED`                    | `handleAdventurerEvent('itemTaken')`               | Magic item taken, dried timer armed to `params.driedDuration`                                         |
+| `DRIED_ENDED`                      | `tickDried()`                                      | `driedRemaining` reaches 0                                                                            |
+| `DRIED_WARNING` _(WS-F addition)_  | `tickDried()`                                      | `driedRemaining` first drops ≤ `DRIED_WARNING_TIME`, fires once per dried episode                     |
+| `ADVENTURER_DISSOLVED`             | `handleKill()`                                     | Every kill, payload includes `combo` and `spillCount`                                                 |
+| `ADVENTURER_BANKED`                | `handleAdventurerEvent('banked')`                  | Same moment as `LOOT_CHANGED`, payload has `count/col/row/coinsBanked/lootGoal`                       |
+| `ITEM_TAKEN`                       | `handleAdventurerEvent('itemTaken')`               | Same moment as `DRIED_STARTED`, payload has `col/row/itemType`                                        |
+| `COIN_TAKEN`                       | the `takeCoinAt` wrapper in `buildAdventurerCtx()` | Every coin an adventurer picks up                                                                     |
+| `DIGEST_STARTED` _(WS-F addition)_ | `handleKill()`                                     | Same moment as `ADVENTURER_DISSOLVED`, payload `{col,row}` — cube briefly slows (`DIGEST_SPEED_MULT`) |
+| `TUNNEL_WRAPPED` _(WS-F addition)_ | `update()`, right after `player.update()`          | The frame the cube's column crosses the wrap seam, payload `{x,z}`                                    |
+| `RUN_OVER`                         | `triggerRunOver()`                                 | Lives hit 0, payload `{score, level, qualifies}` before `setScreen('gameover')`                       |
+| `PAUSED` / `RESUMED`               | `loop.js`'s `SCREEN_CHANGED` subscriber            | `'playing'→'paused'` / `'paused'→'playing'`                                                           |
 
 All three WS-F-added event names (`DIGEST_STARTED`, `DRIED_WARNING`,
 `TUNNEL_WRAPPED`) were already declared in `store.js`'s `EVENTS` by the time
@@ -242,7 +248,7 @@ adventurers for real:
 - Kill 1, first combo of the level, no pack: `DISSOLVE_SCORES[0] = 200`,
   `scoreMult = 1.0` (Veteran) → **score 0 → 200**. Matches exactly.
 - Kill 2, combo 2, pack of 6 coins spilled: `DISSOLVE_SCORES[1] (400) +
-  SCORE_PER_RECOVERED_COIN (15) × 6 = 490`, rounded × `scoreMult` →
+SCORE_PER_RECOVERED_COIN (15) × 6 = 490`, rounded × `scoreMult` →
   **score 200 → 690**. Matches exactly. `pickups.spill()` was confirmed
   called (coinsOnFloor increased, coins became recollectable on the floor).
 
@@ -252,7 +258,7 @@ retried with a freshly generated maze**, confirmed by comparing maze layouts
 before/after); dried-state contact costing a life and respawning the cube at
 the lair with the grace freeze; the dried HUD banner and countdown; screen
 wrap (cube visibly reappeared on the opposite edge with a slime trail
-correctly *not* smearing across the board); game over with correct
+correctly _not_ smearing across the board); game over with correct
 score/level shown; initials entry (tappable wheels **and** physical-keyboard
 letter typing both work); leaderboard insertion at the correct sorted rank;
 Back to Home tearing the run down cleanly (score/lives/level all reset, no
@@ -286,30 +292,30 @@ runway to react to the dried state in every test. No further tuning applied.
 
 ### For WS-H (audio) — mapping `docs/AUDIO.md`'s sfx list to store events
 
-| `docs/AUDIO.md` trigger | Listen for |
-|---|---|
-| `sfx-ui-tap.mp3` (any button press) | Not a store event — hook directly into the UI's own click handlers, or `SCREEN_CHANGED` as an approximation (fires on every nav) |
-| `sfx-level-start.mp3` | `LEVEL_STARTED` |
-| `sfx-level-clear.mp3` | `LEVEL_CLEARED` |
-| `sfx-level-fail.mp3` | `LEVEL_FAILED` |
-| `sfx-engulf.mp3` (wet meaty hit) | `ADVENTURER_DISSOLVED` |
-| `sfx-digest.mp3` (follow-up gulp) | `DIGEST_STARTED` — fires the same instant as `ADVENTURER_DISSOLVED`, so sequence/delay the two clips yourself if you want the "hit, then gulp" feel |
-| `sfx-combo.mp3` (pitch rises with combo) | `ADVENTURER_DISSOLVED`, use `payload.combo` (1-based, caps at `DISSOLVE_SCORES.length`) to drive pitch |
-| `sfx-coin.mp3` | `COIN_TAKEN` |
-| `sfx-bank.mp3` | `ADVENTURER_BANKED` (also see `LOOT_CHANGED`, same moment, if you'd rather not depend on the payload shape) |
-| `sfx-spill.mp3` | `ADVENTURER_DISSOLVED` where `payload.spillCount > 0` |
-| `sfx-item.mp3` | `ITEM_TAKEN` |
-| `sfx-dried.mp3` (danger stinger) | `DRIED_STARTED` |
-| `sfx-dried-warning.mp3` | `DRIED_WARNING` (fires once per dried episode, ~`DRIED_WARNING_TIME` = 2.5s before it ends) |
-| `sfx-rehydrate.mp3` | `DRIED_ENDED` |
-| `sfx-life-lost.mp3` | `LIFE_LOST` |
-| `sfx-tunnel.mp3` | `TUNNEL_WRAPPED` |
-| `sfx-slime-step.mp3` (looping while moving) | No event for this — poll `state.cubeMoving` (true whenever the cube has a nonzero move direction and isn't mid-respawn-freeze) each frame/tick to start/stop the loop |
-| `sfx-highscore.mp3` | `RUN_OVER` where `payload.qualifies` is true |
-| Music: `music-title.mp3` | `SCREEN_CHANGED` → `'home'` or `'leaderboard'` |
-| Music: `music-level.mp3` | `SCREEN_CHANGED` → `'playing'` while `!state.dried` |
-| Music: `music-dried.mp3` (ducks the level track) | `DRIED_STARTED` / `DRIED_ENDED` while `screen === 'playing'` |
-| Music: `music-gameover.mp3` | `SCREEN_CHANGED` → `'gameover'` |
+| `docs/AUDIO.md` trigger                          | Listen for                                                                                                                                                            |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sfx-ui-tap.mp3` (any button press)              | Not a store event — hook directly into the UI's own click handlers, or `SCREEN_CHANGED` as an approximation (fires on every nav)                                      |
+| `sfx-level-start.mp3`                            | `LEVEL_STARTED`                                                                                                                                                       |
+| `sfx-level-clear.mp3`                            | `LEVEL_CLEARED`                                                                                                                                                       |
+| `sfx-level-fail.mp3`                             | `LEVEL_FAILED`                                                                                                                                                        |
+| `sfx-engulf.mp3` (wet meaty hit)                 | `ADVENTURER_DISSOLVED`                                                                                                                                                |
+| `sfx-digest.mp3` (follow-up gulp)                | `DIGEST_STARTED` — fires the same instant as `ADVENTURER_DISSOLVED`, so sequence/delay the two clips yourself if you want the "hit, then gulp" feel                   |
+| `sfx-combo.mp3` (pitch rises with combo)         | `ADVENTURER_DISSOLVED`, use `payload.combo` (1-based, caps at `DISSOLVE_SCORES.length`) to drive pitch                                                                |
+| `sfx-coin.mp3`                                   | `COIN_TAKEN`                                                                                                                                                          |
+| `sfx-bank.mp3`                                   | `ADVENTURER_BANKED` (also see `LOOT_CHANGED`, same moment, if you'd rather not depend on the payload shape)                                                           |
+| `sfx-spill.mp3`                                  | `ADVENTURER_DISSOLVED` where `payload.spillCount > 0`                                                                                                                 |
+| `sfx-item.mp3`                                   | `ITEM_TAKEN`                                                                                                                                                          |
+| `sfx-dried.mp3` (danger stinger)                 | `DRIED_STARTED`                                                                                                                                                       |
+| `sfx-dried-warning.mp3`                          | `DRIED_WARNING` (fires once per dried episode, ~`DRIED_WARNING_TIME` = 2.5s before it ends)                                                                           |
+| `sfx-rehydrate.mp3`                              | `DRIED_ENDED`                                                                                                                                                         |
+| `sfx-life-lost.mp3`                              | `LIFE_LOST`                                                                                                                                                           |
+| `sfx-tunnel.mp3`                                 | `TUNNEL_WRAPPED`                                                                                                                                                      |
+| `sfx-slime-step.mp3` (looping while moving)      | No event for this — poll `state.cubeMoving` (true whenever the cube has a nonzero move direction and isn't mid-respawn-freeze) each frame/tick to start/stop the loop |
+| `sfx-highscore.mp3`                              | `RUN_OVER` where `payload.qualifies` is true                                                                                                                          |
+| Music: `music-title.mp3`                         | `SCREEN_CHANGED` → `'home'` or `'leaderboard'`                                                                                                                        |
+| Music: `music-level.mp3`                         | `SCREEN_CHANGED` → `'playing'` while `!state.dried`                                                                                                                   |
+| Music: `music-dried.mp3` (ducks the level track) | `DRIED_STARTED` / `DRIED_ENDED` while `screen === 'playing'`                                                                                                          |
+| Music: `music-gameover.mp3`                      | `SCREEN_CHANGED` → `'gameover'`                                                                                                                                       |
 
 Also: `SETTINGS_CHANGED` (declared in `store.js`, emitted by `storage.js`'s
 settings mutators, not by rules.js) for the music/SFX toggles — already noted

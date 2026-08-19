@@ -249,12 +249,12 @@ export function levelParams(difficultyId, level) {
     advSpeed: Math.min(LEVEL_RAMP.advSpeedCap, d.advSpeed + n * LEVEL_RAMP.advSpeedPerLevel),
     advCount: Math.min(
       LEVEL_RAMP.advCountCap,
-      d.advCount + Math.floor(n / LEVEL_RAMP.advCountEveryNLevels)
+      d.advCount + Math.floor(n / LEVEL_RAMP.advCountEveryNLevels),
     ),
     driedDuration: Math.min(LEVEL_RAMP.driedCap, d.driedDuration + n * LEVEL_RAMP.driedPerLevel),
     magicItems: Math.min(
       LEVEL_RAMP.magicItemCap,
-      d.magicItems + Math.floor(n / LEVEL_RAMP.magicItemEveryNLevels)
+      d.magicItems + Math.floor(n / LEVEL_RAMP.magicItemEveryNLevels),
     ),
     lootGoalFraction: d.lootGoalFraction,
     scoreMult: d.scoreMult,

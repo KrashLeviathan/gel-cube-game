@@ -98,7 +98,10 @@ function addFadeAttribute(geo) {
 function withFadeShader(material) {
   material.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', `attribute float fade;\nvarying float vFade;\n#include <common>`)
+      .replace(
+        '#include <common>',
+        `attribute float fade;\nvarying float vFade;\n#include <common>`,
+      )
       .replace('#include <begin_vertex>', `#include <begin_vertex>\nvFade = fade;`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `varying float vFade;\n#include <common>`)
@@ -332,13 +335,27 @@ function acquireMaterials(archetype) {
   let entry = materialCache.get(archetype);
   if (!entry) {
     const bodyMat = withFadeShader(
-      new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0.05, transparent: true })
+      new THREE.MeshStandardMaterial({
+        vertexColors: true,
+        roughness: 0.85,
+        metalness: 0.05,
+        transparent: true,
+      }),
     );
     const gearMat = withFadeShader(
-      new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, metalness: 0.6, transparent: true })
+      new THREE.MeshStandardMaterial({
+        vertexColors: true,
+        roughness: 0.4,
+        metalness: 0.6,
+        transparent: true,
+      }),
     );
     const c = ARCHETYPE_COLORS[archetype] || ARCHETYPE_COLORS.fighter;
-    const glowMat = new THREE.MeshBasicMaterial({ color: c.glow, transparent: true, toneMapped: false });
+    const glowMat = new THREE.MeshBasicMaterial({
+      color: c.glow,
+      transparent: true,
+      toneMapped: false,
+    });
     entry = { bodyMat, gearMat, glowMat, refCount: 0 };
     materialCache.set(archetype, entry);
   }
@@ -363,7 +380,11 @@ function acquireSack() {
   if (!sackShared) {
     sackShared = {
       mat: new THREE.MeshStandardMaterial({ color: 0x5b3d24, roughness: 0.85, metalness: 0.05 }),
-      shineMat: new THREE.MeshBasicMaterial({ color: 0xffd766, transparent: true, toneMapped: false }),
+      shineMat: new THREE.MeshBasicMaterial({
+        color: 0xffd766,
+        transparent: true,
+        toneMapped: false,
+      }),
       refCount: 0,
     };
   }
@@ -497,7 +518,9 @@ export function buildAdventurerMesh(scene, archetype) {
     const idleBreath = moving ? 0 : Math.sin(s.t * 1.6) * BOB_AMP * 0.1;
     pivot.position.y = Math.abs(Math.sin(s.walkPhase)) * bobAmp * bobRate + idleBreath;
 
-    const swayTarget = fleeing ? Math.sin(s.walkPhase * 1.7) * PANIC_SWAY : Math.sin(s.walkPhase) * IDLE_SWAY;
+    const swayTarget = fleeing
+      ? Math.sin(s.walkPhase * 1.7) * PANIC_SWAY
+      : Math.sin(s.walkPhase) * IDLE_SWAY;
     s.swayZ += (swayTarget - s.swayZ) * Math.min(1, dt * 8);
     pivot.rotation.z = s.swayZ;
 

@@ -93,7 +93,15 @@ import {
   FLEE_SPEED_MULT,
   DIFFICULTIES,
 } from '../config.js';
-import { worldX, worldZ, wrapWorldX, idx, wrapCol, isWalkable, tileDistance } from '../maze/grid.js';
+import {
+  worldX,
+  worldZ,
+  wrapWorldX,
+  idx,
+  wrapCol,
+  isWalkable,
+  tileDistance,
+} from '../maze/grid.js';
 import { distanceField } from '../maze/pathfinding.js';
 
 const WHO = 'adventurer';
@@ -273,10 +281,20 @@ function updateAdventurer(adv, maze, ctx, dt) {
     }
   }
 
-  if (adv.state === 'seekItem' && adv._target && adv.col === adv._target.col && adv.row === adv._target.row) {
+  if (
+    adv.state === 'seekItem' &&
+    adv._target &&
+    adv.col === adv._target.col &&
+    adv.row === adv._target.row
+  ) {
     const taken = ctx.takeItemAt(adv.col, adv.row);
     if (taken) {
-      event = { type: 'itemTaken', item: taken === true ? adv._target : taken, col: adv.col, row: adv.row };
+      event = {
+        type: 'itemTaken',
+        item: taken === true ? adv._target : taken,
+        col: adv.col,
+        row: adv.row,
+      };
       adv._target = null;
       adv._goalField = null;
     }
@@ -612,7 +630,11 @@ function decideAtTileCenter(adv, maze) {
 
   const isJunction = candidates.length >= 2;
   const isTurn = newDir !== adv.dir;
-  const wantsHesitate = (adv.state === 'flee' || adv.state === 'seekItem') && isJunction && isTurn && adv.dir !== DIR_NONE;
+  const wantsHesitate =
+    (adv.state === 'flee' || adv.state === 'seekItem') &&
+    isJunction &&
+    isTurn &&
+    adv.dir !== DIR_NONE;
 
   if (wantsHesitate && Math.random() < HESITATE_CHANCE) {
     adv.dir = DIR_NONE; // a beat of "thinking" right at the junction

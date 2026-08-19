@@ -26,7 +26,9 @@ function roundedCubeGeometry(size, seg, roundness) {
   const v = new THREE.Vector3();
   for (let i = 0; i < pos.count; i++) {
     v.fromBufferAttribute(pos, i);
-    const nx = v.x / half, ny = v.y / half, nz = v.z / half;
+    const nx = v.x / half,
+      ny = v.y / half,
+      nz = v.z / half;
     const len = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
     const bx = THREE.MathUtils.lerp(nx, nx / len, roundness);
     const by = THREE.MathUtils.lerp(ny, ny / len, roundness);
@@ -96,7 +98,13 @@ function makeCrackTexture() {
     ctx.stroke();
     const branches = 1 + Math.floor(Math.random() * 2);
     for (let i = 0; i < branches; i++) {
-      branch(x2, y2, angle + (Math.random() - 0.5) * 1.4, len * (0.55 + Math.random() * 0.25), depth - 1);
+      branch(
+        x2,
+        y2,
+        angle + (Math.random() - 0.5) * 1.4,
+        len * (0.55 + Math.random() * 0.25),
+        depth - 1,
+      );
     }
   };
   const seeds = 5;
@@ -137,7 +145,10 @@ function makeShieldDeviceTexture() {
 function buildSkullGeo() {
   return mergeParts([
     { geometry: new THREE.SphereGeometry(R * 0.22, 10, 8) },
-    { geometry: new THREE.BoxGeometry(R * 0.3, R * 0.06, R * 0.1), position: [0, -R * 0.04, R * 0.17] },
+    {
+      geometry: new THREE.BoxGeometry(R * 0.3, R * 0.06, R * 0.1),
+      position: [0, -R * 0.04, R * 0.17],
+    },
     {
       geometry: new THREE.BoxGeometry(R * 0.22, R * 0.09, R * 0.16),
       position: [0, -R * 0.18, R * 0.1],
@@ -148,8 +159,14 @@ function buildSkullGeo() {
 
 function buildEyeSocketsGeo() {
   return mergeParts([
-    { geometry: new THREE.SphereGeometry(R * 0.05, 6, 6), position: [R * 0.1, -R * 0.02, R * 0.19] },
-    { geometry: new THREE.SphereGeometry(R * 0.05, 6, 6), position: [-R * 0.1, -R * 0.02, R * 0.19] },
+    {
+      geometry: new THREE.SphereGeometry(R * 0.05, 6, 6),
+      position: [R * 0.1, -R * 0.02, R * 0.19],
+    },
+    {
+      geometry: new THREE.SphereGeometry(R * 0.05, 6, 6),
+      position: [-R * 0.1, -R * 0.02, R * 0.19],
+    },
   ]);
 }
 
@@ -158,7 +175,10 @@ function buildRibcageGeo() {
   const n = 4;
   for (let i = 0; i < n; i++) {
     const z = -R * 0.18 + (i / (n - 1)) * R * 0.36;
-    parts.push({ geometry: new THREE.BoxGeometry(R * 0.055, R * 0.055, R * 0.055), position: [0, 0, z] });
+    parts.push({
+      geometry: new THREE.BoxGeometry(R * 0.055, R * 0.055, R * 0.055),
+      position: [0, 0, z],
+    });
     parts.push({
       geometry: new THREE.TorusGeometry(R * 0.17, R * 0.015, 5, 10, Math.PI * 0.85),
       position: [0, -R * 0.02, z],
@@ -170,7 +190,10 @@ function buildRibcageGeo() {
 
 function buildFemurGeo() {
   return mergeParts([
-    { geometry: new THREE.CapsuleGeometry(R * 0.032, R * 0.3, 3, 6), rotation: [0, 0, Math.PI / 2] },
+    {
+      geometry: new THREE.CapsuleGeometry(R * 0.032, R * 0.3, 3, 6),
+      rotation: [0, 0, Math.PI / 2],
+    },
     { geometry: new THREE.SphereGeometry(R * 0.055, 7, 6), position: [-R * 0.17, 0, 0] },
     { geometry: new THREE.SphereGeometry(R * 0.06, 7, 6), position: [R * 0.17, 0, 0] },
   ]);
@@ -185,14 +208,21 @@ function buildSwordGeo() {
       rotation: [Math.PI / 2, Math.PI / 4, 0],
     },
     { geometry: new THREE.BoxGeometry(R * 0.16, R * 0.02, R * 0.03), position: [0, 0, -R * 0.14] },
-    { geometry: new THREE.CylinderGeometry(R * 0.018, R * 0.018, R * 0.12, 6), position: [0, 0, -R * 0.21], rotation: [Math.PI / 2, 0, 0] },
+    {
+      geometry: new THREE.CylinderGeometry(R * 0.018, R * 0.018, R * 0.12, 6),
+      position: [0, 0, -R * 0.21],
+      rotation: [Math.PI / 2, 0, 0],
+    },
     { geometry: new THREE.SphereGeometry(R * 0.032, 6, 6), position: [0, 0, -R * 0.28] },
   ]);
 }
 
 function buildShieldBaseGeo() {
   return mergeParts([
-    { geometry: new THREE.SphereGeometry(R * 0.22, 12, 6, 0, Math.PI * 2, 0, Math.PI * 0.42), rotation: [Math.PI, 0, 0] },
+    {
+      geometry: new THREE.SphereGeometry(R * 0.22, 12, 6, 0, Math.PI * 2, 0, Math.PI * 0.42),
+      rotation: [Math.PI, 0, 0],
+    },
     { geometry: new THREE.TorusGeometry(R * 0.21, R * 0.018, 5, 16), position: [0, 0.001, 0] },
     { geometry: new THREE.SphereGeometry(R * 0.05, 8, 6), position: [0, R * 0.02, 0] },
   ]);
@@ -242,7 +272,7 @@ export function buildCube(scene, colorId) {
       opacity: 1,
       side: THREE.DoubleSide,
     }),
-    disposables.mats
+    disposables.mats,
   );
 
   let shaderRef = null;
@@ -255,7 +285,7 @@ export function buildCube(scene, colorId) {
     shader.vertexShader = shader.vertexShader
       .replace(
         '#include <common>',
-        `uniform float uTime;\nuniform float uAmp;\nuniform float uBulge;\n#include <common>`
+        `uniform float uTime;\nuniform float uAmp;\nuniform float uBulge;\n#include <common>`,
       )
       .replace(
         '#include <begin_vertex>',
@@ -265,12 +295,12 @@ export function buildCube(scene, colorId) {
                     sin(transformed.y * 2.6 + uTime * 1.7) *
                     sin(transformed.z * 3.4 + uTime * 2.4);
           transformed += normal * (w * uAmp + uBulge);
-        }`
+        }`,
       );
     shader.fragmentShader = shader.fragmentShader
       .replace(
         '#include <common>',
-        `uniform vec3 uRimColor;\nuniform float uRimStrength;\n#include <common>`
+        `uniform vec3 uRimColor;\nuniform float uRimStrength;\n#include <common>`,
       )
       .replace(
         '#include <emissivemap_fragment>',
@@ -278,7 +308,7 @@ export function buildCube(scene, colorId) {
         {
           float fresnel = pow(1.0 - saturate(dot(normalize(vViewPosition), normal)), 2.2);
           totalEmissiveRadiance += uRimColor * fresnel * uRimStrength;
-        }`
+        }`,
       );
     shaderRef = shader;
   };
@@ -299,7 +329,7 @@ export function buildCube(scene, colorId) {
       blending: THREE.AdditiveBlending,
       side: THREE.DoubleSide,
     }),
-    disposables.mats
+    disposables.mats,
   );
   const crackMesh = new THREE.Mesh(bodyGeo, crackMat);
   crackMesh.scale.setScalar(1.01);
@@ -328,10 +358,16 @@ export function buildCube(scene, colorId) {
       emissive: 0x4a4230,
       emissiveIntensity: 0.25,
     }),
-    disposables.mats
+    disposables.mats,
   );
-  const darkMat = track(new THREE.MeshStandardMaterial({ color: 0x0c0a0f, roughness: 0.6 }), disposables.mats);
-  const steelGeoTint = track(tintVertexColors(buildSwordGeo(), new THREE.Color(0x9aa4ad), 0.35), disposables.geos);
+  const darkMat = track(
+    new THREE.MeshStandardMaterial({ color: 0x0c0a0f, roughness: 0.6 }),
+    disposables.mats,
+  );
+  const steelGeoTint = track(
+    tintVertexColors(buildSwordGeo(), new THREE.Color(0x9aa4ad), 0.35),
+    disposables.geos,
+  );
   const steelMat = track(
     new THREE.MeshStandardMaterial({
       color: 0xffffff,
@@ -341,17 +377,25 @@ export function buildCube(scene, colorId) {
       emissive: 0x3a4048,
       emissiveIntensity: 0.2,
     }),
-    disposables.mats
+    disposables.mats,
   );
   const woodMat = track(
-    new THREE.MeshStandardMaterial({ color: 0x5b3d24, roughness: 0.8, emissive: 0x2a1810, emissiveIntensity: 0.2 }),
-    disposables.mats
+    new THREE.MeshStandardMaterial({
+      color: 0x5b3d24,
+      roughness: 0.8,
+      emissive: 0x2a1810,
+      emissiveIntensity: 0.2,
+    }),
+    disposables.mats,
   );
-  const goldMat = track(new THREE.MeshStandardMaterial({ color: 0xffcf4d, metalness: 0.85, roughness: 0.35 }), disposables.mats);
+  const goldMat = track(
+    new THREE.MeshStandardMaterial({ color: 0xffcf4d, metalness: 0.85, roughness: 0.35 }),
+    disposables.mats,
+  );
   const deviceTex = track(makeShieldDeviceTexture(), disposables.texs);
   const deviceMat = track(
     new THREE.MeshBasicMaterial({ map: deviceTex, transparent: true, depthWrite: false }),
-    disposables.mats
+    disposables.mats,
   );
 
   const skullGeo = track(buildSkullGeo(), disposables.geos);
@@ -360,7 +404,10 @@ export function buildCube(scene, colorId) {
   const femurGeo = track(buildFemurGeo(), disposables.geos);
   const shieldGeo = track(buildShieldBaseGeo(), disposables.geos);
   const deviceGeo = track(new THREE.CircleGeometry(R * 0.17, 16), disposables.geos);
-  const coinGeo = track(new THREE.CylinderGeometry(R * 0.06, R * 0.06, R * 0.02, 8), disposables.geos);
+  const coinGeo = track(
+    new THREE.CylinderGeometry(R * 0.06, R * 0.06, R * 0.02, 8),
+    disposables.geos,
+  );
 
   const skullGroup = new THREE.Group();
   skullGroup.add(new THREE.Mesh(skullGeo, boneMat), new THREE.Mesh(eyeGeo, darkMat));
@@ -394,12 +441,72 @@ export function buildCube(scene, colorId) {
   contentsGroup.add(skullGroup, ribGroup, femur1, femur2, swordGroup, shieldGroup, coinMesh);
 
   const floaters = [
-    { g: skullGroup, r: R * 0.16, speed: 0.35, phase: 0.0, ry: 0.6, rx: 0.2, rz: 0.1, by: R * 0.1, amp: R * 0.06 },
-    { g: ribGroup, r: R * 0.1, speed: -0.22, phase: 1.4, ry: 0.15, rx: 0.35, rz: 0.05, by: -R * 0.02, amp: R * 0.05 },
-    { g: femur1, r: R * 0.2, speed: 0.28, phase: 2.6, ry: 0.5, rx: 0.7, rz: 0.4, by: -R * 0.12, amp: R * 0.07 },
-    { g: femur2, r: R * 0.22, speed: -0.31, phase: 4.1, ry: -0.4, rx: 0.3, rz: -0.6, by: -R * 0.16, amp: R * 0.06 },
-    { g: swordGroup, r: R * 0.24, speed: 0.4, phase: 3.0, ry: 0.9, rx: 0.1, rz: 0.1, by: R * 0.02, amp: R * 0.08 },
-    { g: shieldGroup, r: R * 0.19, speed: -0.26, phase: 5.2, ry: 0.2, rx: 0.15, rz: 0.55, by: -R * 0.06, amp: R * 0.05 },
+    {
+      g: skullGroup,
+      r: R * 0.16,
+      speed: 0.35,
+      phase: 0.0,
+      ry: 0.6,
+      rx: 0.2,
+      rz: 0.1,
+      by: R * 0.1,
+      amp: R * 0.06,
+    },
+    {
+      g: ribGroup,
+      r: R * 0.1,
+      speed: -0.22,
+      phase: 1.4,
+      ry: 0.15,
+      rx: 0.35,
+      rz: 0.05,
+      by: -R * 0.02,
+      amp: R * 0.05,
+    },
+    {
+      g: femur1,
+      r: R * 0.2,
+      speed: 0.28,
+      phase: 2.6,
+      ry: 0.5,
+      rx: 0.7,
+      rz: 0.4,
+      by: -R * 0.12,
+      amp: R * 0.07,
+    },
+    {
+      g: femur2,
+      r: R * 0.22,
+      speed: -0.31,
+      phase: 4.1,
+      ry: -0.4,
+      rx: 0.3,
+      rz: -0.6,
+      by: -R * 0.16,
+      amp: R * 0.06,
+    },
+    {
+      g: swordGroup,
+      r: R * 0.24,
+      speed: 0.4,
+      phase: 3.0,
+      ry: 0.9,
+      rx: 0.1,
+      rz: 0.1,
+      by: R * 0.02,
+      amp: R * 0.08,
+    },
+    {
+      g: shieldGroup,
+      r: R * 0.19,
+      speed: -0.26,
+      phase: 5.2,
+      ry: 0.2,
+      rx: 0.15,
+      rz: 0.55,
+      by: -R * 0.06,
+      amp: R * 0.05,
+    },
   ];
 
   // -- mutable animation state -------------------------------------------
@@ -448,7 +555,8 @@ export function buildCube(scene, colorId) {
     s.driedFactor += (target - s.driedFactor) * Math.min(1, dt * 4);
     let blink = 0;
     const secondsLeft = opts.driedSecondsLeft;
-    const warning = secondsLeft !== undefined ? secondsLeft < DRIED_WARNING_TIME : dried && driedRatio < 0.36;
+    const warning =
+      secondsLeft !== undefined ? secondsLeft < DRIED_WARNING_TIME : dried && driedRatio < 0.36;
     if (warning) blink = 0.5 + 0.5 * Math.sin(t * 14);
     const eff = s.driedFactor * (1 - blink * 0.6);
 
@@ -469,7 +577,9 @@ export function buildCube(scene, colorId) {
 
     // squash-and-stretch along the travel axis
     const stretchAmt = Math.min(0.16, (speed / SPEED_STRETCH_REF) * 0.22) * (1 - eff * 0.7);
-    let tx = 1, ty = 1, tz = 1;
+    let tx = 1,
+      ty = 1,
+      tz = 1;
     if (moveDir !== -1 && speed > 0.05) {
       const d = DIRS[moveDir];
       if (d.dc !== 0) {
@@ -492,7 +602,7 @@ export function buildCube(scene, colorId) {
     bodyMesh.scale.set(
       s.scaleCur.x * shrink * gulpScale,
       s.scaleCur.y * shrink * gulpScale,
-      s.scaleCur.z * shrink * gulpScale
+      s.scaleCur.z * shrink * gulpScale,
     );
     crackMesh.scale.copy(bodyMesh.scale).multiplyScalar(1.01);
     crackMesh.visible = eff > 0.01;
@@ -523,7 +633,11 @@ export function buildCube(scene, colorId) {
       const ang = f.phase + t * f.speed;
       const slumpY = -R * 0.28;
       const by = THREE.MathUtils.lerp(f.by, slumpY, eff);
-      f.g.position.set(Math.cos(ang) * orbitR, by + Math.sin(t * 0.7 + f.phase) * f.amp * (1 - eff * 0.6), Math.sin(ang) * orbitR * 0.7);
+      f.g.position.set(
+        Math.cos(ang) * orbitR,
+        by + Math.sin(t * 0.7 + f.phase) * f.amp * (1 - eff * 0.6),
+        Math.sin(ang) * orbitR * 0.7,
+      );
       const rate = 1 - eff * 0.85;
       f.g.rotation.x += f.rx * dt * rate;
       f.g.rotation.y += f.ry * dt * rate;

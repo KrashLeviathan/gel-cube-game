@@ -68,7 +68,10 @@ export function createSlimeTrail(scene, colorId) {
   });
   material.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', `attribute float aAlpha;\nvarying float vAlpha;\n#include <common>`)
+      .replace(
+        '#include <common>',
+        `attribute float aAlpha;\nvarying float vAlpha;\n#include <common>`,
+      )
       .replace('#include <begin_vertex>', `#include <begin_vertex>\nvAlpha = aAlpha;`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `varying float vAlpha;\n#include <common>`)

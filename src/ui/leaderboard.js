@@ -65,7 +65,7 @@ export function renderLeaderboard(container, opts = {}) {
       <span class="lb-score">${entry.score.toLocaleString()}</span>
       <span class="lb-meta">${entry.level}</span>
       <span class="lb-meta lb-meta--diff">${difficultyLabel(entry.difficulty)}<br /><small>${fmtDate(
-        entry.date
+        entry.date,
       )}</small></span>
     `;
     container.appendChild(row);

@@ -110,7 +110,11 @@ export function createScene(canvas) {
     shakeTime = Math.max(0, shakeTime - dt);
     const falloff = shakeTime / SHAKE_DURATION;
     const s = shakeMag * falloff;
-    jitter.set((Math.random() - 0.5) * s, (Math.random() - 0.5) * s * 0.6, (Math.random() - 0.5) * s);
+    jitter.set(
+      (Math.random() - 0.5) * s,
+      (Math.random() - 0.5) * s * 0.6,
+      (Math.random() - 0.5) * s,
+    );
     camera.position.copy(basePos).add(jitter);
     camera.lookAt(0, 0, 0);
     if (shakeTime <= 0) {

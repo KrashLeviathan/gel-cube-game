@@ -123,7 +123,10 @@ function fadeMaterial(opts) {
   });
   material.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', `attribute float aAlpha;\nvarying float vAlpha;\n#include <common>`)
+      .replace(
+        '#include <common>',
+        `attribute float aAlpha;\nvarying float vAlpha;\n#include <common>`,
+      )
       .replace('#include <begin_vertex>', `#include <begin_vertex>\nvAlpha = aAlpha;`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `varying float vAlpha;\n#include <common>`)
@@ -177,7 +180,10 @@ function makePool(scene, geometry, material, count) {
   };
 }
 
-function spawnInto(pool, { x, y, z, vx, vy, vz, life, scale, color, gravity = GRAVITY, spin = 0, grow = 0 }) {
+function spawnInto(
+  pool,
+  { x, y, z, vx, vy, vz, life, scale, color, gravity = GRAVITY, spin = 0, grow = 0 },
+) {
   const i = pool.cursor;
   pool.cursor = (pool.cursor + 1) % pool.count;
   pool.x[i] = x;

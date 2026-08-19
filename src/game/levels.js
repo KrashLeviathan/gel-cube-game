@@ -66,5 +66,16 @@ export function buildLevel(scene, difficulty, levelNumber) {
     for (const { view } of adventurers) view.dispose();
   }
 
-  return { maze, params, player, adventurers, pickups, dungeonView, torches, coinsTotal, lootGoal, dispose };
+  return {
+    maze,
+    params,
+    player,
+    adventurers,
+    pickups,
+    dungeonView,
+    torches,
+    coinsTotal,
+    lootGoal,
+    dispose,
+  };
 }

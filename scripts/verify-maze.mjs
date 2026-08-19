@@ -100,7 +100,8 @@ function checkSymmetry(maze) {
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       const mc = COLS - 1 - c;
-      if (tiles[idx(c, r)] !== tiles[idx(mc, r)]) mismatches.push({ c, mc, r, a: tiles[idx(c, r)], b: tiles[idx(mc, r)] });
+      if (tiles[idx(c, r)] !== tiles[idx(mc, r)])
+        mismatches.push({ c, mc, r, a: tiles[idx(c, r)], b: tiles[idx(mc, r)] });
     }
   }
   // The lair door is the one documented, spec-mandated exception: COLS is
@@ -109,7 +110,10 @@ function checkSymmetry(maze) {
   // one door<->lair pair (mismatch count === 2: (door,lair) and (lair,door)).
   if (mismatches.length === 0) return true;
   if (mismatches.length !== 2) return false;
-  return mismatches.every(({ a, b }) => (a === TILE_LAIR_DOOR && b === TILE_LAIR) || (a === TILE_LAIR && b === TILE_LAIR_DOOR));
+  return mismatches.every(
+    ({ a, b }) =>
+      (a === TILE_LAIR_DOOR && b === TILE_LAIR) || (a === TILE_LAIR && b === TILE_LAIR_DOOR),
+  );
 }
 
 function checkTunnelReachesEdges(maze) {
@@ -193,7 +197,10 @@ function checkMaze(seed, idxInRun) {
   const label = `seed=${seed}`;
   let ok = true;
 
-  if (maze.cols !== COLS || maze.rows !== ROWS) { fail(`${label}: wrong dims`); ok = false; }
+  if (maze.cols !== COLS || maze.rows !== ROWS) {
+    fail(`${label}: wrong dims`);
+    ok = false;
+  }
 
   // Connectivity: full flood fill from spawn ('cube'), and adventurer flood
   // fill from just outside the door, must cover 100% of the relevant tiles.
@@ -204,40 +211,81 @@ function checkMaze(seed, idxInRun) {
     if (t !== TILE_WALL && t !== TILE_LAIR && t !== TILE_LAIR_DOOR) totalAdvWalkable++;
   }
   const cubeReach = floodFillCount(maze, maze.spawn.col, maze.spawn.row, 'cube');
-  if (cubeReach !== totalNonWall) { fail(`${label}: cube flood fill reached ${cubeReach}/${totalNonWall} non-wall tiles`); ok = false; }
+  if (cubeReach !== totalNonWall) {
+    fail(`${label}: cube flood fill reached ${cubeReach}/${totalNonWall} non-wall tiles`);
+    ok = false;
+  }
 
   const doorTiles = scanTiles(maze.tiles, TILE_LAIR_DOOR);
   if (doorTiles.length === 1) {
     let outside = null;
     const d = doorTiles[0];
-    const cand = [[d.col, d.row - 1], [d.col + 1, d.row], [d.col, d.row + 1], [d.col - 1, d.row]];
+    const cand = [
+      [d.col, d.row - 1],
+      [d.col + 1, d.row],
+      [d.col, d.row + 1],
+      [d.col - 1, d.row],
+    ];
     for (const [c, r] of cand) {
       if (r < 0 || r >= ROWS) continue;
-      if (isWalkable(maze, c, r, 'adventurer')) { outside = { col: c, row: r }; break; }
+      if (isWalkable(maze, c, r, 'adventurer')) {
+        outside = { col: c, row: r };
+        break;
+      }
     }
     if (outside) {
       const advReach = floodFillCount(maze, outside.col, outside.row, 'adventurer');
-      if (advReach !== totalAdvWalkable) { fail(`${label}: adventurer flood fill reached ${advReach}/${totalAdvWalkable} tiles (must avoid lair)`); ok = false; }
+      if (advReach !== totalAdvWalkable) {
+        fail(
+          `${label}: adventurer flood fill reached ${advReach}/${totalAdvWalkable} tiles (must avoid lair)`,
+        );
+        ok = false;
+      }
     } else {
-      fail(`${label}: no walkable tile outside the door`); ok = false;
+      fail(`${label}: no walkable tile outside the door`);
+      ok = false;
     }
   }
 
-  if (!checkSymmetry(maze)) { fail(`${label}: not left/right symmetric (beyond the documented door exception)`); ok = false; }
-  if (!checkTunnelReachesEdges(maze)) { fail(`${label}: tunnel row does not fully reach both edges`); ok = false; }
+  if (!checkSymmetry(maze)) {
+    fail(`${label}: not left/right symmetric (beyond the documented door exception)`);
+    ok = false;
+  }
+  if (!checkTunnelReachesEdges(maze)) {
+    fail(`${label}: tunnel row does not fully reach both edges`);
+    ok = false;
+  }
 
   const lairMsg = checkLairAndDoor(maze);
-  if (lairMsg) { fail(`${label}: ${lairMsg}`); ok = false; }
+  if (lairMsg) {
+    fail(`${label}: ${lairMsg}`);
+    ok = false;
+  }
 
   const pocket = checkNoIsolatedPockets(maze);
-  if (pocket) { fail(`${label}: isolated pocket at ${JSON.stringify(pocket)}`); ok = false; }
+  if (pocket) {
+    fail(`${label}: isolated pocket at ${JSON.stringify(pocket)}`);
+    ok = false;
+  }
 
-  if (maze.exits.length < 2 || maze.exits.length > 4) { fail(`${label}: exits count ${maze.exits.length} out of [2,4]`); ok = false; }
-  if (maze.advSpawns.length < 4) { fail(`${label}: advSpawns count ${maze.advSpawns.length} < 4`); ok = false; }
-  if (maze.itemSpots.length < 8) { fail(`${label}: itemSpots count ${maze.itemSpots.length} < 8`); ok = false; }
+  if (maze.exits.length < 2 || maze.exits.length > 4) {
+    fail(`${label}: exits count ${maze.exits.length} out of [2,4]`);
+    ok = false;
+  }
+  if (maze.advSpawns.length < 4) {
+    fail(`${label}: advSpawns count ${maze.advSpawns.length} < 4`);
+    ok = false;
+  }
+  if (maze.itemSpots.length < 8) {
+    fail(`${label}: itemSpots count ${maze.itemSpots.length} < 8`);
+    ok = false;
+  }
   for (const s of maze.advSpawns) {
     const t = maze.tiles[idx(s.col, s.row)];
-    if (t === TILE_LAIR || t === TILE_LAIR_DOOR) { fail(`${label}: advSpawn inside lair at ${JSON.stringify(s)}`); ok = false; }
+    if (t === TILE_LAIR || t === TILE_LAIR_DOOR) {
+      fail(`${label}: advSpawn inside lair at ${JSON.stringify(s)}`);
+      ok = false;
+    }
   }
 
   let deadEnds = 0;
@@ -250,13 +298,18 @@ function checkMaze(seed, idxInRun) {
   }
   stats.deadEnds.push(deadEnds);
   if (deadEnds > maze.exits.length + MAX_DEAD_ENDS_BUDGET) {
-    fail(`${label}: ${deadEnds} dead ends exceeds budget (exits=${maze.exits.length}, budget=+${MAX_DEAD_ENDS_BUDGET})`);
+    fail(
+      `${label}: ${deadEnds} dead ends exceeds budget (exits=${maze.exits.length}, budget=+${MAX_DEAD_ENDS_BUDGET})`,
+    );
     ok = false;
   }
 
   const ratio = totalNonWall / maze.tiles.length;
   stats.ratios.push(ratio);
-  if (ratio < 0.35 || ratio > 0.68) { fail(`${label}: walkable ratio ${ratio.toFixed(3)} outside sane band`); ok = false; }
+  if (ratio < 0.35 || ratio > 0.68) {
+    fail(`${label}: walkable ratio ${ratio.toFixed(3)} outside sane band`);
+    ok = false;
+  }
 
   if (idxInRun === 0) sampleMaze = maze;
   return ok;
@@ -278,16 +331,27 @@ function checkPathfinding(seed) {
     const fieldDist = df[idx(goal.col, goal.row)];
 
     if (start.col === goal.col && start.row === goal.row) {
-      if (dir !== DIR_NONE) { fail(`pathfinding: same-tile step should be DIR_NONE, got ${dir}`); ok = false; }
+      if (dir !== DIR_NONE) {
+        fail(`pathfinding: same-tile step should be DIR_NONE, got ${dir}`);
+        ok = false;
+      }
       continue;
     }
     if (fieldDist === -1) {
-      if (dir !== DIR_NONE || path.length !== 0) { fail('pathfinding: unreachable goal should yield DIR_NONE / empty path'); ok = false; }
+      if (dir !== DIR_NONE || path.length !== 0) {
+        fail('pathfinding: unreachable goal should yield DIR_NONE / empty path');
+        ok = false;
+      }
       continue;
     }
-    if (dir === DIR_NONE) { fail(`pathfinding: reachable goal (dist ${fieldDist}) returned DIR_NONE`); ok = false; }
+    if (dir === DIR_NONE) {
+      fail(`pathfinding: reachable goal (dist ${fieldDist}) returned DIR_NONE`);
+      ok = false;
+    }
     if (path.length !== fieldDist) {
-      fail(`pathfinding: findPath length ${path.length} != distanceField ${fieldDist} for ${JSON.stringify(start)} -> ${JSON.stringify(goal)}`);
+      fail(
+        `pathfinding: findPath length ${path.length} != distanceField ${fieldDist} for ${JSON.stringify(start)} -> ${JSON.stringify(goal)}`,
+      );
       ok = false;
     }
   }
@@ -297,9 +361,16 @@ function checkPathfinding(seed) {
   for (const tr of maze.tunnelRows) {
     const left = { col: 1, row: tr };
     const right = { col: COLS - 2, row: tr };
-    const path = findPath(maze, left.col, left.row, (c, r) => c === right.col && r === right.row, { who: 'adventurer' });
-    if (path.length === 0) { fail(`pathfinding: no wrap path found on tunnel row ${tr}`); ok = false; }
-    else if (path.length > 8) { fail(`pathfinding: wrap path length ${path.length} is not using the wrap (tunnel row ${tr})`); ok = false; }
+    const path = findPath(maze, left.col, left.row, (c, r) => c === right.col && r === right.row, {
+      who: 'adventurer',
+    });
+    if (path.length === 0) {
+      fail(`pathfinding: no wrap path found on tunnel row ${tr}`);
+      ok = false;
+    } else if (path.length > 8) {
+      fail(`pathfinding: wrap path length ${path.length} is not using the wrap (tunnel row ${tr})`);
+      ok = false;
+    }
   }
 
   return ok;
@@ -323,9 +394,14 @@ function checkPerf() {
   }
   const t1 = performance.now();
   const usPerCall = ((t1 - t0) / N) * 1000;
-  console.log(`\nperf: ${N} weighted stepToward calls in ${(t1 - t0).toFixed(1)}ms (${usPerCall.toFixed(1)}us/call)`);
+  console.log(
+    `\nperf: ${N} weighted stepToward calls in ${(t1 - t0).toFixed(1)}ms (${usPerCall.toFixed(1)}us/call)`,
+  );
   // Budget: 8 adventurers x ~5 calls/sec = 40 calls/sec => needs to be well under 1ms/call.
-  if (usPerCall > 2000) { fail(`perf: ${usPerCall.toFixed(1)}us/call is too slow for the 8-adventurer budget`); return false; }
+  if (usPerCall > 2000) {
+    fail(`perf: ${usPerCall.toFixed(1)}us/call is too slow for the 8-adventurer budget`);
+    return false;
+  }
   return true;
 }
 
@@ -352,11 +428,13 @@ function pct(arr, p) {
 console.log('\n--- summary -------------------------------------------------');
 console.log(`mazes checked:        ${N_MAZES}`);
 console.log(
-  `walkable ratio:        min ${Math.min(...stats.ratios).toFixed(3)}  p50 ${pct(stats.ratios, 0.5).toFixed(3)}  max ${Math.max(...stats.ratios).toFixed(3)}`
+  `walkable ratio:        min ${Math.min(...stats.ratios).toFixed(3)}  p50 ${pct(stats.ratios, 0.5).toFixed(3)}  max ${Math.max(...stats.ratios).toFixed(3)}`,
 );
-console.log(`dead ends:              min ${Math.min(...stats.deadEnds)}  p50 ${pct(stats.deadEnds, 0.5)}  max ${Math.max(...stats.deadEnds)}`);
 console.log(
-  `generation time:        min ${Math.min(...stats.genTimesMs).toFixed(2)}ms  p50 ${pct(stats.genTimesMs, 0.5).toFixed(2)}ms  max ${Math.max(...stats.genTimesMs).toFixed(2)}ms`
+  `dead ends:              min ${Math.min(...stats.deadEnds)}  p50 ${pct(stats.deadEnds, 0.5)}  max ${Math.max(...stats.deadEnds)}`,
+);
+console.log(
+  `generation time:        min ${Math.min(...stats.genTimesMs).toFixed(2)}ms  p50 ${pct(stats.genTimesMs, 0.5).toFixed(2)}ms  max ${Math.max(...stats.genTimesMs).toFixed(2)}ms`,
 );
 
 if (sampleMaze) {

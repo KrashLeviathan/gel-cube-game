@@ -21,7 +21,7 @@
   --panel-border: #4a4552;
   --torch: #ff9a3c;
   --shadow-hard: 0 6px 0 rgba(0, 0, 0, 0.55);
-  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
   color-scheme: dark;
 }
@@ -85,13 +85,17 @@ button {
   text-transform: uppercase;
   cursor: pointer;
   touch-action: manipulation;
-  transition: transform 0.06s ease, box-shadow 0.06s ease;
+  transition:
+    transform 0.06s ease,
+    box-shadow 0.06s ease;
 }
 
 .btn--primary {
   background: linear-gradient(180deg, #94ff5c, var(--accent));
   color: #0e2004;
-  box-shadow: var(--shadow-hard), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  box-shadow:
+    var(--shadow-hard),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
 .btn--secondary {
@@ -184,7 +188,9 @@ button {
   font-size: clamp(2.4rem, 10vw, 4rem);
   letter-spacing: 0.06em;
   color: var(--accent);
-  text-shadow: 0 0 18px rgba(124, 252, 74, 0.45), 0 4px 0 rgba(0, 0, 0, 0.6);
+  text-shadow:
+    0 0 18px rgba(124, 252, 74, 0.45),
+    0 4px 0 rgba(0, 0, 0, 0.6);
 }
 
 .tagline {
@@ -285,7 +291,9 @@ button {
 
 .swatch.is-active {
   border-color: var(--ink);
-  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--swatch-color);
+  box-shadow:
+    0 0 0 2px var(--bg),
+    0 0 0 4px var(--swatch-color);
 }
 
 .settings-group--toggles {
@@ -395,7 +403,11 @@ button {
 /* Pause ---------------------------------------------------------------- */
 
 .screen--paused {
-  background: radial-gradient(120% 100% at 50% 0%, rgba(26, 22, 32, 0.97) 0%, rgba(7, 6, 10, 0.97) 70%);
+  background: radial-gradient(
+    120% 100% at 50% 0%,
+    rgba(26, 22, 32, 0.97) 0%,
+    rgba(7, 6, 10, 0.97) 70%
+  );
 }
 
 .pause-stage {
@@ -554,7 +566,9 @@ button {
   text-align: center;
   white-space: nowrap;
   opacity: 0;
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
   z-index: 5;
 }
 
@@ -631,7 +645,9 @@ button {
   border-radius: 999px;
   opacity: 0;
   transform: scale(0.7);
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
   white-space: nowrap;
   display: none;
 }
@@ -674,7 +690,9 @@ button {
   height: 18px;
   border-radius: 4px;
   background: linear-gradient(155deg, #b6ff8c, var(--accent) 60%, #3a8a1c);
-  box-shadow: 0 0 6px rgba(124, 252, 74, 0.6), inset 0 0 3px rgba(255, 255, 255, 0.5);
+  box-shadow:
+    0 0 6px rgba(124, 252, 74, 0.6),
+    inset 0 0 3px rgba(255, 255, 255, 0.5);
 }
 
 .hud-loot-wrap {

@@ -22,7 +22,7 @@ loot. The player wins a level by dissolving every adventurer. The player loses
 the level if the party banks enough gold to hit the **loot goal**. Scattered
 through the maze are a few **magic items**; if an adventurer grabs one, the cube
 **dries out** — shrivelled, slow, vulnerable — and the party turns and hunts
-*it*. Touch a hunter while dried and you lose a life. Three lives, then initials
+_it_. Touch a hunter while dried and you lose a life. Three lives, then initials
 on the leaderboard.
 
 ---
@@ -90,7 +90,7 @@ at the top of `src/maze/grid.js`. Treat it as immutable after generation.
 4. **SEEK_ITEM** — if a magic item is un-taken and within
    `ITEM_INTEREST_RADIUS`, and the adventurer is threatened (or by personality
    roll), path to the item instead. Taking it triggers the dried state.
-5. **HUNT** — while the cube is dried, path *toward* the cube at
+5. **HUNT** — while the cube is dried, path _toward_ the cube at
    `HUNT_SPEED_MULT` speed. Contact costs the player a life.
 6. **DEAD** — dissolved adventurers do **not** respawn. Their carried coins
    spill back onto nearby floor tiles and are re-collectable.
@@ -113,7 +113,7 @@ Adventurers may never enter `TILE_LAIR` or `TILE_LAIR_DOOR`.
 - **Cleared** — every adventurer dissolved. Award `LEVEL_CLEAR_BONUS` plus
   `SCORE_PER_UNBANKED_COIN` per coin never banked. Advance the level, regenerate
   the maze.
-- **Failed** — `coinsBanked >= lootGoal`. Lose a life; retry the *same* level
+- **Failed** — `coinsBanked >= lootGoal`. Lose a life; retry the _same_ level
   number with a **freshly generated** maze.
 - **Run over** — lives reach 0. Show game over → initials entry if the score
   ranks in the top `MAX_LEADERBOARD_ENTRIES`.
@@ -140,11 +140,11 @@ concern, and call out anything that ripples across a documented API.
 
 ### Contract files — change with care
 
-| File | Purpose |
-|---|---|
-| `src/config.js` | All tunables and enums |
-| `src/maze/grid.js` | Coordinate maths, tile queries, wrapping |
-| `src/state/store.js` | Observable state + event bus |
+| File                 | Purpose                                  |
+| -------------------- | ---------------------------------------- |
+| `src/config.js`      | All tunables and enums                   |
+| `src/maze/grid.js`   | Coordinate maths, tile queries, wrapping |
+| `src/state/store.js` | Observable state + event bus             |
 
 ### `src/maze/generator.js` — **WS-A**
 
@@ -154,6 +154,7 @@ export function generateMaze(seed?: number): Maze
 ```
 
 Requirements:
+
 - Left/right **mirror symmetric**, Pac-Man style.
 - Corridors exactly **1 tile wide**; wall blocks at least 2 tiles thick where
   possible so walls read as masonry, not lines.
@@ -287,7 +288,7 @@ Grid-locked movement with a queued turn, wrap handling via
 digesting multipliers). Exposes continuous world position **and** the tile it
 currently occupies.
 
-Pac-Man-grade movement is subtler than it looks. On a phone this *is* the whole
+Pac-Man-grade movement is subtler than it looks. On a phone this _is_ the whole
 experience — mushy controls kill the game regardless of how good it looks:
 
 - **Pre-turn buffering** — a turn requested slightly before a junction is
@@ -296,7 +297,7 @@ experience — mushy controls kill the game regardless of how good it looks:
   mid-tile, without waiting for a junction.
 - **Corner tolerance**, with deliberate snapping of the off-axis coordinate to
   the corridor centreline. Accumulated float drift is the classic bug here.
-- Walls stop the cube cleanly *at* the tile centre, keeping its facing; it
+- Walls stop the cube cleanly _at_ the tile centre, keeping its facing; it
   resumes on the next legal request.
 - `col`/`row` always reflect the wrapped tile while `x`/`z` stay continuous, and
   the caller must be able to tell a wrap happened this frame — the slime trail
@@ -310,6 +311,7 @@ export function createInput(targetEl): Input
 ```
 
 Mobile first:
+
 - **Drag-anywhere floating joystick**: touch down anywhere on the play area sets
   an origin; dragging past an ~18–24px deadzone resolves a 4-way direction; the
   direction persists after release (Pac-Man style continuous movement), and
@@ -342,7 +344,7 @@ Archetypes: `fighter`, `rogue`, `wizard`, `cleric` — differing in speed
 multiplier, greed (pack capacity tolerance), courage (flee radius), and item
 interest, by roughly ±15% per axis: meaningful but not extreme.
 
-Their behaviour *is* the difficulty curve, which makes this the most
+Their behaviour _is_ the difficulty curve, which makes this the most
 gameplay-critical module in the project:
 
 - **No jitter.** Oscillating between equidistant goals, or flip-flopping at the
@@ -353,7 +355,7 @@ gameplay-critical module in the project:
 - **They should look like they're thinking, not solving.** Perfect pathing feels
   robotic and is unfairly hard: occasionally take the second-nearest coin,
   hesitate at a junction when threatened, take a wrong turn while panicking.
-- A loot-laden fleer should prefer fleeing *toward* a stairwell where the two are
+- A loot-laden fleer should prefer fleeing _toward_ a stairwell where the two are
   compatible — banking under pressure is a good moment.
 - They should use the wrap tunnels. Popping out the far side is a signature beat.
 - SEEK_ITEM is the party's counterplay and **must actually happen**, or the game
@@ -459,7 +461,7 @@ touch. Expected filenames are listed in `docs/AUDIO.md` (WS-H writes it).
    or removing an export ripples across the whole project.
 5. `npm run verify` must pass when you finish — plus `npm run verify:maze` if you
    touched `src/maze/`. Run them.
-6. Keep comments sparse and useful — explain *why*, not *what*.
+6. Keep comments sparse and useful — explain _why_, not _what_.
 7. Keep each module standalone: no reaching into globals, no implicit ordering
    assumptions beyond the documented API.
 8. Record anything you deviated on, and any gotcha the next person would trip

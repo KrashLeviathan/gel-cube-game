@@ -215,15 +215,18 @@ export function createAudio() {
     voice.gain.gain.setValueAtTime(voice.gain.gain.value, now);
     voice.gain.gain.linearRampToValueAtTime(0, now + fadeS);
     const src = voice.source;
-    setTimeout(() => {
-      try {
-        src.stop();
-      } catch {
-        /* already stopped */
-      }
-      src.disconnect();
-      voice.gain.disconnect();
-    }, fadeS * 1000 + 50);
+    setTimeout(
+      () => {
+        try {
+          src.stop();
+        } catch {
+          /* already stopped */
+        }
+        src.disconnect();
+        voice.gain.disconnect();
+      },
+      fadeS * 1000 + 50,
+    );
   }
 
   /** Start a looping music voice at `targetGain`, fading in from 0. */
@@ -408,7 +411,7 @@ export function createAudio() {
         if (!state.settings) return;
         if (!!state.settings.music !== musicEnabled) setMusicEnabled(state.settings.music);
         if (!!state.settings.sfx !== sfxEnabled) setSfxEnabled(state.settings.sfx);
-      })
+      }),
     );
   }
 

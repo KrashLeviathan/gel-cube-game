@@ -192,8 +192,12 @@ export function createScreens(root, handlers = {}) {
       <button type="button" class="btn btn--secondary" data-action="quit">Quit to Home</button>
     `;
     pauseStageEl.appendChild(actions);
-    actions.querySelector('[data-action="resume"]').addEventListener('click', () => handlers.onResume?.());
-    actions.querySelector('[data-action="quit"]').addEventListener('click', () => renderQuitConfirm());
+    actions
+      .querySelector('[data-action="resume"]')
+      .addEventListener('click', () => handlers.onResume?.());
+    actions
+      .querySelector('[data-action="quit"]')
+      .addEventListener('click', () => renderQuitConfirm());
   }
 
   function renderQuitConfirm() {

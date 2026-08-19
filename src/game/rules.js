@@ -132,7 +132,7 @@ export function createRules({ scene }) {
         combo: 0,
         cubeMoving: false,
       },
-      EVENTS.LEVEL_STARTED
+      EVENTS.LEVEL_STARTED,
     );
   }
 
@@ -207,7 +207,11 @@ export function createRules({ scene }) {
     disposeLevel();
     state.running = false;
     const finalScore = state.score;
-    emit(EVENTS.RUN_OVER, { score: finalScore, level: state.level, qualifies: qualifies(finalScore) });
+    emit(EVENTS.RUN_OVER, {
+      score: finalScore,
+      level: state.level,
+      qualifies: qualifies(finalScore),
+    });
     setScreen('gameover');
   }
 
