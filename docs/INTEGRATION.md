@@ -183,6 +183,72 @@ The Home screen's "How to Play" button opens `.howto`, a sibling overlay inside
 
 ---
 
+## Offline shell + update prompt ✅ landed
+
+Files: `src/sw.js` (template), `src/swClient.js`, `src/ui/updatePrompt.js`,
+the `gelcube-service-worker` plugin in `vite.config.js`, `public/_headers`.
+
+Post-build addition, not one of the original workstreams. Deploy-side detail
+lives in [DEPLOYMENT-INSTRUCTIONS.md](DEPLOYMENT-INSTRUCTIONS.md) §3; this is
+what matters if you are changing code.
+
+### `src/sw.js` is a template, not a module
+
+Nothing imports it and Vite never puts it through the module graph. The build
+plugin stamps a build digest and the precache list into it and emits
+`dist/sw.js`. Consequences:
+
+- **No imports, no `import.meta`, no bundler syntax.** Plain ES2020 against the
+  service worker globals.
+- The plugin **throws** if either placeholder is missing. That is deliberate —
+  an unstamped worker still deploys and then dies on an undefined identifier at
+  install time, silently taking offline support with it. (This exact bug
+  happened while writing it: `String.replace` stamped a mention of the token in
+  a doc comment instead of the code.)
+- The build digest covers the **contents** of every emitted file, not just
+  filenames, so an `index.html`-only change still produces an update. Rebuilding
+  unchanged sources produces an identical worker, so it does not nag players
+  over a no-op deploy.
+
+### The worker never activates itself
+
+`install` precaches and stops; there is no `skipWaiting()` in it. The new worker
+waits until `ui/updatePrompt.js` → `swClient.applyUpdate()` posts
+`{type:'SKIP_WAITING'}`. **Don't "simplify" this by auto-activating** — it would
+swap the bundle under a live run and reload the player out of their game.
+
+### Gotchas
+
+- `public/audio/` is **not** precached. `cache.addAll()` is atomic and the mp3s
+  are optional, so one absent file would fail the whole install and leave the
+  game with no offline support at all. They are runtime-cached instead, into an
+  unversioned `gelcube-audio-v1` cache that survives deploys — re-downloading
+  megabytes of audio on every release would be the worst trade in the project.
+- Only same-origin `200`s are cached. A 404 for a missing optional mp3 must
+  never be stored as if it were the file.
+- The toast is **not** a screen (same reasoning as How to Play) and stays hidden
+  while `screen` is `'playing'` or `'paused'` — `'paused'` still means a live
+  run, and a mis-tap there would destroy it.
+- In dev, `swClient.js` actively **unregisters** any worker it finds instead of
+  registering one. `npm run preview` registers a real worker on localhost, and
+  left alone it would serve a built bundle over the top of the dev server.
+- `registerServiceWorker()` swallows every failure. Offline play is a bonus; a
+  registration error must never stop the game booting.
+
+### Not verifiable in the agent browser
+
+Service worker registration is blocked in the in-app browser pane — even a
+one-line worker fails with "An unknown error occurred when fetching the script".
+`src/sw.js`'s handlers were verified by driving them in a stubbed
+`ServiceWorkerGlobalScope` under Node, and `ui/updatePrompt.js` by importing the
+real module over the dev server. **The browser-side lifecycle — `updatefound`,
+`waiting`, `controllerchange`, and the reload — has not been exercised against a
+real browser.** Check it by hand in Chrome or Safari before trusting a release:
+build, serve `dist/`, load it, rebuild with a change, reload, and confirm the
+toast appears and Refresh lands the new build.
+
+---
+
 ## WS-F — integration ✅ landed
 
 Files: `src/game/rules.js`, `src/game/levels.js`, `src/game/loop.js`,

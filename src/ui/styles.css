@@ -645,6 +645,86 @@ button {
   color: var(--muted);
 }
 
+/* Update toast ---------------------------------------------------------
+   Sits above every screen and the How to Play overlay. Raised clear of the
+   version badge in the bottom-right corner rather than covering it.
+-------------------------------------------------------------------- */
+
+.update-toast {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--safe-b) + 34px);
+  transform: translate(-50%, 12px);
+  z-index: 7;
+  display: none;
+  align-items: center;
+  gap: 0.6rem;
+  width: max-content;
+  max-width: min(460px, calc(100vw - 24px));
+  padding: 0.6rem 0.7rem 0.6rem 1rem;
+  background: var(--panel-bg);
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  pointer-events: auto;
+  opacity: 0;
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
+}
+
+.update-toast.is-visible {
+  display: flex;
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.update-toast-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: clamp(0.78rem, 2.5vw, 0.9rem);
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.update-toast-refresh {
+  flex: 0 0 auto;
+  padding: 0.6em 1em;
+  min-height: 44px;
+  font-size: 0.8rem;
+}
+
+.update-toast-dismiss {
+  flex: 0 0 auto;
+  appearance: none;
+  border: 1px solid var(--stone-500);
+  background: var(--stone-700);
+  color: var(--muted);
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.update-toast-dismiss:active {
+  transform: translateY(2px);
+}
+
+@media (max-width: 400px) {
+  /* Text on its own row so neither touch target has to shrink. */
+  .update-toast {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .update-toast-text {
+    flex: 1 0 100%;
+  }
+}
+
 /* Banner layer --------------------------------------------------------- */
 
 .banner-layer {
@@ -945,7 +1025,8 @@ button {
 @media (prefers-reduced-motion: reduce) {
   .btn,
   .banner-layer,
-  .hud-combo {
+  .hud-combo,
+  .update-toast {
     transition: none !important;
   }
 

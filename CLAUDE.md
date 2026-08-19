@@ -72,8 +72,17 @@ main.js          bootstrap; the ONLY place store events turn into Three.js calls
   ├─ game/levels.js    builds a level from levelParams(): maze, views, entities
   ├─ state/store.js    dumb observable state + event bus
   ├─ ui/*, game/audio.js   listen to the store only; never drive simulation
+  ├─ swClient.js       registers the service worker, spots a waiting update;
+  │                    ui/updatePrompt.js shows the toast, main.js wires them
   └─ maze/, render/, entities/   pure modules, no store access
 ```
+
+`src/sw.js` is outside all of this: a template, not a module, stamped by a
+plugin in `vite.config.js` and emitted as `dist/sw.js`. It makes the game
+playable offline, which means **it, not `public/_headers`, decides when a
+returning player sees a new build.** Read the section in `docs/INTEGRATION.md`
+before touching it — auto-activating the new worker is the tempting change that
+would reload players out of a live game.
 
 The data flow is one-directional and worth protecting: **`rules.js` mutates the
 store and emits; `ui/` and `audio.js` only listen.** Nothing in `render/`,
@@ -104,7 +113,8 @@ horizontally on `maze.tunnelRows`; there is no vertical wrap.
 1. **No new dependencies.** Vanilla ES modules and Three.js only. No TypeScript,
    no React, no utility libraries. This is about what ships: `three` stays the
    lone runtime dependency, and build/dev tooling stays minimal too — Vite and
-   Prettier, nothing more, unless the user asks for it.
+   Prettier, nothing more, unless the user asks for it. (This is why the service
+   worker is hand-rolled rather than `vite-plugin-pwa`.)
 2. **No external asset files.** Textures are drawn procedurally into a `<canvas>`;
    geometry is built from Three.js primitives. The sole exception is the optional
    mp3s the user drops into `public/audio/` — and the game must run identically
