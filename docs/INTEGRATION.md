@@ -163,6 +163,24 @@ driedRemaining, combo`
   is unavailable, sanitises all reads.
 - WS-H: listen for `SETTINGS_CHANGED` to react to the music/sfx toggles.
 
+### How to Play is an overlay, not a screen
+
+The Home screen's "How to Play" button opens `.howto`, a sibling overlay inside
+`screens-root` at `z-index: 6` — deliberately **not** a sixth value of
+`state.screen`, which stays the documented five. Consequences worth knowing:
+
+- Nothing in the store observes it. `store.on(SCREEN_CHANGED)` never fires for
+  it, so `audio.js` keeps the title track playing straight through, which is
+  what you want.
+- `render()` force-closes it on every screen change, so it can never outlive
+  Home (e.g. if a tap lands on Start Game while it's open).
+- It binds one `window` keydown for Esc, removed in `dispose()`. That's safe
+  alongside `input.js`'s own Esc handler because `main.js` only pauses on Esc
+  while `screen === 'playing'`.
+- The content quotes real tuning values (pack size, combo scores, level-clear
+  bonus, difficulty multipliers). **If you retune those in `config.js`, fix the
+  copy in `screens.js` too** — nothing links the two.
+
 ---
 
 ## WS-F — integration ✅ landed

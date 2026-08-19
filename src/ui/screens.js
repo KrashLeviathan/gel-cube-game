@@ -75,6 +75,7 @@ export function createScreens(root, handlers = {}) {
     </div>
     <div class="home-actions">
       <button type="button" class="btn btn--primary btn--large" data-action="start">Start Game</button>
+      <button type="button" class="btn btn--secondary" data-action="howto">How to Play</button>
       <button type="button" class="btn btn--secondary" data-action="scores">Top Scores</button>
     </div>
     <div class="settings-row">
@@ -150,6 +151,108 @@ export function createScreens(root, handlers = {}) {
   homeEl.querySelector('[data-action="scores"]').addEventListener('click', () => {
     setScreen('leaderboard');
   });
+
+  // ---------------------------------------------------------------------
+  // How to Play — an overlay layered on top of Home, deliberately NOT a
+  // screen of its own: `state.screen` has a fixed five-value set and this
+  // isn't one of them. Closing it is pure DOM, so nothing about the run or
+  // the store observes that it was ever open.
+  // ---------------------------------------------------------------------
+  const howtoEl = document.createElement('section');
+  howtoEl.className = 'howto';
+  howtoEl.setAttribute('role', 'dialog');
+  howtoEl.setAttribute('aria-modal', 'true');
+  howtoEl.setAttribute('aria-label', 'How to play');
+  howtoEl.innerHTML = `
+    <h2 class="screen-heading">How to Play</h2>
+    <div class="howto-scroll">
+      <p class="howto-lede">
+        Pac-Man, inverted. The <em>adventurers</em> are the ones eating the dungeon —
+        scooping up coins and hauling them to the stairwells to bank. You are the
+        gelatinous cube in the lair, and they are the pellets.
+      </p>
+
+      <div class="howto-block">
+        <h3 class="howto-heading">Moving</h3>
+        <ul class="howto-list">
+          <li><b>Drag anywhere</b> on the screen to steer — a quick flick counts too.</li>
+          <li>The cube keeps crawling in the last direction you asked for. You steer at
+              junctions; there is no stick to hold.</li>
+          <li>Keyboard: <b>arrow keys</b> or <b>WASD</b>. <b>Esc</b> or <b>P</b> pauses.</li>
+          <li>The side tunnels wrap — crawl off one edge, arrive at the other.</li>
+          <li>Adventurers can never follow you into your lair.</li>
+        </ul>
+      </div>
+
+      <div class="howto-block">
+        <h3 class="howto-heading">Clearing a level</h3>
+        <ul class="howto-list">
+          <li>Dissolve <b>every adventurer</b> and the level is yours.</li>
+          <li>Each one carries six coins, then breaks for a stairwell to bank them.
+              Coins only count for the party <em>once they're banked</em>.</li>
+          <li>Dissolve a loaded adventurer and their haul spills back onto the floor.
+              Ambush them on the way to the stairs, not on the way out.</li>
+        </ul>
+      </div>
+
+      <div class="howto-block">
+        <h3 class="howto-heading">Losing a life</h3>
+        <ul class="howto-list">
+          <li>If the party banks its loot goal — roughly 60% of the dungeon's coins, a
+              little more on Novice, a little less on Legendary — the level is lost and
+              it costs you a life.</li>
+          <li>Watch the <b>loot bar</b>: it turns orange, then red, as they close in.</li>
+          <li>You get <b>three lives</b>, then it's initials on the leaderboard.</li>
+        </ul>
+      </div>
+
+      <div class="howto-block howto-block--danger">
+        <h3 class="howto-heading">Magic items</h3>
+        <ul class="howto-list">
+          <li>Magic items lie scattered through the dungeon. If an adventurer picks one
+              up, <b>you dry out</b>.</li>
+          <li>Dried out you are slow and shrivelled, and the whole party turns around and
+              <b>hunts you</b>. Any of them touching you now costs a life.</li>
+          <li>The red bar counts down what's left of it, and blinks near the end.</li>
+          <li>Dying doesn't cure it — the timer keeps running through your respawn, so
+              leaving the lair still dried is your problem.</li>
+          <li>Reach an item first and it's gone before they can ever use it.</li>
+        </ul>
+      </div>
+
+      <div class="howto-block">
+        <h3 class="howto-heading">Scoring</h3>
+        <ul class="howto-list">
+          <li>Dissolves chain: <b>200 / 400 / 800 / 1600 / 3200</b>. The chain holds as
+              long as the next one lands within about six seconds.</li>
+          <li><b>+15</b> for every coin recovered from a dissolved pack.</li>
+          <li>Clearing a level pays <b>1000</b>, plus <b>10</b> for every coin the party
+              never got to bank.</li>
+          <li>Difficulty scales all of it: Novice ×0.75, Veteran ×1, Legendary ×1.5.</li>
+        </ul>
+      </div>
+    </div>
+    <button type="button" class="btn btn--secondary" data-action="howto-close">Back</button>
+  `;
+  wrap.appendChild(howtoEl);
+
+  function setHowtoOpen(open) {
+    howtoEl.classList.toggle('is-open', open);
+    if (open) howtoEl.querySelector('.howto-scroll').scrollTop = 0;
+  }
+
+  homeEl.querySelector('[data-action="howto"]').addEventListener('click', () => setHowtoOpen(true));
+  howtoEl
+    .querySelector('[data-action="howto-close"]')
+    .addEventListener('click', () => setHowtoOpen(false));
+
+  // Esc closes the overlay. Harmless to bind globally: input.js's own Esc
+  // handler only pauses while the screen is 'playing', and the overlay is
+  // only ever open on Home.
+  function onHowtoKey(e) {
+    if (e.key === 'Escape' && howtoEl.classList.contains('is-open')) setHowtoOpen(false);
+  }
+  window.addEventListener('keydown', onHowtoKey);
 
   // ---------------------------------------------------------------------
   // Leaderboard
@@ -345,6 +448,7 @@ export function createScreens(root, handlers = {}) {
   function render(screen) {
     goToken++; // invalidate any in-flight game-over async flow if we navigated away
     pauseToken++; // ditto for an in-flight pause quit/initials flow
+    setHowtoOpen(false); // never let the How to Play overlay outlive the Home screen
     wrap.classList.toggle('is-open', OPEN_SCREENS.has(screen));
     for (const [name, elm] of Object.entries(SCREEN_EL)) {
       elm.classList.toggle('is-active', name === screen);
@@ -370,6 +474,7 @@ export function createScreens(root, handlers = {}) {
 
   function dispose() {
     unsubs.forEach((fn) => fn());
+    window.removeEventListener('keydown', onHowtoKey);
     if (bannerTimer) clearTimeout(bannerTimer);
     wrap.remove();
     banner.remove();

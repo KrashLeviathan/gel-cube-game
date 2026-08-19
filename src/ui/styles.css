@@ -321,6 +321,105 @@ button {
   border-color: var(--accent);
 }
 
+/* How to Play ---------------------------------------------------------
+   An overlay above the screens, not a screen — see src/ui/screens.js.
+   The body scrolls; the heading and Back button stay pinned so the way
+   out is always a thumb's reach away on a phone.
+-------------------------------------------------------------------- */
+
+.howto {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(0.6rem, 2vh, 1rem);
+  padding: calc(var(--safe-t) + 16px) calc(var(--safe-r) + 16px) calc(var(--safe-b) + 16px)
+    calc(var(--safe-l) + 16px);
+  background: radial-gradient(120% 100% at 50% 0%, #1a1620 0%, var(--bg) 70%);
+  text-align: left;
+}
+
+.howto.is-open {
+  display: flex;
+}
+
+.howto-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: min(560px, 94vw);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  padding: 0.9rem 1.1rem;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+}
+
+.howto-lede {
+  margin: 0 0 1.1rem;
+  color: var(--muted);
+  font-size: clamp(0.85rem, 2.7vw, 0.95rem);
+  line-height: 1.55;
+  font-style: italic;
+}
+
+.howto-lede em {
+  color: var(--ink);
+}
+
+.howto-block + .howto-block {
+  margin-top: 1.1rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--stone-700);
+}
+
+.howto-heading {
+  margin: 0 0 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.howto-block--danger .howto-heading {
+  color: var(--danger);
+}
+
+.howto-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  font-size: clamp(0.85rem, 2.7vw, 0.95rem);
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.howto-list::marker,
+.howto-list li::marker {
+  color: var(--stone-500);
+}
+
+.howto-list b {
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.howto-list em {
+  color: var(--gold);
+  font-style: italic;
+}
+
+.howto > .btn {
+  flex: 0 0 auto;
+  width: min(320px, 80vw);
+}
+
 /* Leaderboard -------------------------------------------------------- */
 
 .screen--leaderboard {
@@ -816,11 +915,22 @@ button {
 
   .home-actions {
     flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
     width: auto;
   }
 
   .home-actions .btn {
     width: auto;
+  }
+
+  .howto {
+    gap: 0.4rem;
+    padding-top: calc(var(--safe-t) + 8px);
+  }
+
+  .howto .screen-heading {
+    font-size: 1.05rem;
   }
 
   .hud-loot-wrap {
