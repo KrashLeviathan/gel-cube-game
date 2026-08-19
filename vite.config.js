@@ -43,8 +43,18 @@ function serviceWorker() {
       // NOT public/audio/* — those are optional, may be absent entirely, and
       // an addAll() is atomic, so one missing mp3 would fail the whole
       // install and leave the game with no offline support at all.
+      //
+      // The entry document is precached as './' (the site root), NOT
+      // 'index.html'. Cloudflare Workers' static-asset serving 307-redirects
+      // a request for the literal "index.html" filename to "/" — fetch()
+      // follows that, so caching it stores a Response with `redirected:
+      // true`. A browser refuses to satisfy a page *navigation* with a
+      // respondWith() value that is a redirected response (redirect mode
+      // isn't 'manual' for navigations), so every load after this worker
+      // activated failed with net::ERR_FAILED. './' is what an actual
+      // navigation requests, so it's never redirected and never poisoned.
       const precache = [
-        'index.html',
+        './',
         ...Object.keys(bundle)
           .filter((f) => f.startsWith('assets/'))
           .sort(),

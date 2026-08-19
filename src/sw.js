@@ -36,7 +36,12 @@ const KEEP = [SHELL_CACHE, AUDIO_CACHE];
 // Resolved against the worker's own URL rather than assumed to be root-
 // relative, so the game keeps working if it is ever served from a subpath.
 const SHELL_URLS = new Set(PRECACHE_PATHS.map((p) => new URL(p, self.location).href));
-const INDEX_URL = new URL('index.html', self.location).href;
+// The site root, not 'index.html' — see the precache-list comment in
+// vite.config.js. A host that 307-redirects the literal filename to '/'
+// (Cloudflare Workers' static-asset serving does) would otherwise get a
+// redirected Response cached here, which a navigation can never be
+// satisfied with (net::ERR_FAILED on every load after this worker installs).
+const INDEX_URL = new URL('./', self.location).href;
 const AUDIO_PREFIX = new URL('audio/', self.location).pathname;
 
 self.addEventListener('install', (event) => {
