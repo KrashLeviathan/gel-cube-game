@@ -89,9 +89,19 @@ From `main`, once it's in the state you want deployed:
 ```bash
 git checkout main
 git pull
-git tag release-1.0.0
-git push origin release-1.0.0
+npm version patch   # or: minor / major / 1.2.3
+git push --follow-tags
 ```
+
+`npm version` bumps `version` in `package.json`, commits that bump, and
+creates a matching `release-*` tag in one step — `tag-version-prefix` in
+[`.npmrc`](../.npmrc) is what makes the tag come out as `release-1.0.0`
+instead of npm's default `v1.0.0`. This is also what keeps the small version
+badge in the bottom-right corner of the Home and Pause screens accurate: it's
+read from `package.json` at build time (see [`vite.config.js`](../vite.config.js)
+and [`src/version.js`](../src/version.js)), so it can never drift from the tag
+that triggers the deploy below. `git push --follow-tags` pushes both the
+commit and the new tag.
 
 Pushing the tag triggers the **Deploy** workflow, which:
 
@@ -104,8 +114,13 @@ Watch progress under the repo's **Actions** tab. Once it's green, the change
 is live at `gelatinous-cube-game.krashleviathan.com` — Worker deploys are
 close to instant (usually live within seconds).
 
-Tag names just need to start with `release-` — use whatever versioning scheme
-you like (`release-1.0.0`, `release-2026-08-18`, etc.).
+The Deploy workflow itself only cares that the tag starts with `release-`; it
+doesn't require semver. `npm version` is just the recommended way to produce
+one of those tags, because it's what keeps `package.json` — and therefore the
+in-game version badge — in sync automatically. Pushing a `release-*` tag by
+hand still works (e.g. `git tag release-2026-08-18 && git push origin
+release-2026-08-18`) but the badge will keep showing whatever `package.json`
+last said, since nothing recomputes it from an arbitrary tag name.
 
 ---
 
