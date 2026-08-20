@@ -196,7 +196,10 @@ export function createHud(root) {
     on(EVENTS.SCREEN_CHANGED, (screen) => {
       const show = screen === 'playing' || screen === 'paused';
       el.classList.toggle('is-visible', show);
-      if (screen === 'playing') resetAllOnFirstShow();
+      if (screen === 'playing') {
+        resetAllOnFirstShow();
+        syncCameraBtn();
+      }
     }),
   ];
 
@@ -219,7 +222,12 @@ export function createHud(root) {
   });
 
   function syncCameraBtn() {
-    cameraBtn.classList.toggle('is-active', !!state.settings.closeCamera);
+    // Legendary has no top-down option — the close-follow camera is forced
+    // (see main.js's effectiveCameraMode()), so there's nothing to toggle.
+    const available = state.settings.difficulty !== 'hard';
+    cameraBtn.classList.toggle('is-hidden', !available);
+    cameraBtn.disabled = !available;
+    cameraBtn.classList.toggle('is-active', available && !!state.settings.closeCamera);
   }
 
   cameraBtn.addEventListener('click', () => {

@@ -54,6 +54,27 @@ function angleForDir(dir) {
   return Math.atan2(dc, dr);
 }
 
+/** Soft radial falloff for the floor glow disc — opaque-ish center fading to
+ *  nothing at the rim, same technique as adventurerMesh.js's ground halo, so
+ *  the light pool reads as a pool rather than a hard-edged coin. */
+function createGlowTexture() {
+  const size = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  grad.addColorStop(0, 'rgba(255,255,255,0.95)');
+  grad.addColorStop(0.45, 'rgba(255,255,255,0.5)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+  return tex;
+}
+
 function isCorridor(t) {
   return t === TILE_FLOOR || t === TILE_TUNNEL || t === TILE_EXIT;
 }
@@ -173,6 +194,10 @@ export function buildTorches(scene, maze, spots = getTorchSpots(maze)) {
       pos: new THREE.Vector3(mountX, MOUNT_Y + 0.12, mountZ),
       phase: hash01(seed, spot.col, spot.row, spot.dir, 91) * Math.PI * 2,
       phase2: hash01(seed, spot.col, spot.row, spot.dir, 92) * Math.PI * 2,
+      // Third, slower/lower-frequency phase for the floor glow's own pulse —
+      // deliberately decoupled from the flame's flicker (phase/phase2) so
+      // the light pool doesn't just mirror the flame 1:1.
+      phase3: hash01(seed, spot.col, spot.row, spot.dir, 93) * Math.PI * 2,
       snuffed: false,
     });
   }
@@ -208,10 +233,12 @@ export function buildTorches(scene, maze, spots = getTorchSpots(maze)) {
     flameTemplate.dispose();
   }
 
-  const glowGeo = new THREE.CircleGeometry(0.42, 16);
+  const glowGeo = new THREE.CircleGeometry(0.52, 16);
   glowGeo.rotateX(-Math.PI / 2);
+  const glowTexture = createGlowTexture();
   const glowMat = new THREE.MeshBasicMaterial({
     color: PALETTE.torch,
+    map: glowTexture,
     transparent: true,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
@@ -292,13 +319,22 @@ export function buildTorches(scene, maze, spots = getTorchSpots(maze)) {
         }
 
         if (glowMesh) {
-          const s = 0.85 + flicker * 0.35;
+          // Flame-linked brightness (flicker) modulated by a slower, lower-
+          // amplitude wobble at a decorrelated frequency/phase (phase3) —
+          // reads as the light pool breathing a little on its own rather
+          // than mirroring the flame exactly.
+          const glowPulse =
+            flicker *
+            (0.92 +
+              0.08 * Math.sin(elapsed * 2.1 + t.phase3) +
+              0.05 * Math.sin(elapsed * 4.7 + t.phase3 * 1.3));
+          const s = 0.85 + glowPulse * 0.35;
           dummy.position.set(t.pos.x, 0.012, t.pos.z);
           dummy.rotation.set(0, 0, 0);
           dummy.scale.set(s, 1, s);
           dummy.updateMatrix();
           glowMesh.setMatrixAt(i, dummy.matrix);
-          glowColor.copy(baseTorchColor).multiplyScalar(flicker * 0.8);
+          glowColor.copy(baseTorchColor).multiplyScalar(glowPulse * 0.8);
           glowMesh.setColorAt(i, glowColor);
         }
 
@@ -355,6 +391,7 @@ export function buildTorches(scene, maze, spots = getTorchSpots(maze)) {
         const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
         for (const m of mats) m?.dispose();
       });
+      glowTexture.dispose();
     },
   };
   return api;

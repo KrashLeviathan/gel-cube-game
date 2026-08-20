@@ -29,10 +29,18 @@ const uiRoot = document.getElementById('ui-root');
 
 state.settings = loadSettings();
 
+// Legendary has no top-down option at all — the close-follow camera is
+// forced regardless of the player's saved preference (that preference is
+// left untouched in storage, so Novice/Veteran still honor it normally).
+function effectiveCameraMode() {
+  if (state.settings.difficulty === 'hard') return 'close';
+  return state.settings.closeCamera ? 'close' : 'board';
+}
+
 const sceneCtx = createScene(canvas);
-sceneCtx.setCameraMode(state.settings.closeCamera ? 'close' : 'board');
+sceneCtx.setCameraMode(effectiveCameraMode());
 on(EVENTS.SETTINGS_CHANGED, () => {
-  sceneCtx.setCameraMode(state.settings.closeCamera ? 'close' : 'board');
+  sceneCtx.setCameraMode(effectiveCameraMode());
 });
 const input = createInput(canvas);
 

@@ -57,17 +57,27 @@ function sanitizeSettings(raw) {
     if (typeof raw.music === 'boolean') out.music = raw.music;
     if (typeof raw.sfx === 'boolean') out.sfx = raw.sfx;
     if (typeof raw.haptics === 'boolean') out.haptics = raw.haptics;
+    if (typeof raw.closeCamera === 'boolean') out.closeCamera = raw.closeCamera;
   }
   return out;
 }
 
+// First-ever load (nothing in storage yet, or it's corrupt) defaults the
+// close-follow camera to on — new players get the more readable close view
+// by default. Any load after that goes through sanitizeSettings() instead,
+// which falls back to DEFAULT_SETTINGS.closeCamera (off) for a field that's
+// genuinely absent — e.g. a settings blob saved before this option existed —
+// so a returning player who predates the feature isn't switched on them, but
+// their own explicit choice (once they've made one) always round-trips.
+const FIRST_LOAD_SETTINGS = { ...DEFAULT_SETTINGS, closeCamera: true };
+
 export function loadSettings() {
   const raw = rawGet(STORAGE_KEY_SETTINGS);
-  if (!raw) return { ...DEFAULT_SETTINGS };
+  if (!raw) return { ...FIRST_LOAD_SETTINGS };
   try {
     return sanitizeSettings(JSON.parse(raw));
   } catch {
-    return { ...DEFAULT_SETTINGS };
+    return { ...FIRST_LOAD_SETTINGS };
   }
 }
 
