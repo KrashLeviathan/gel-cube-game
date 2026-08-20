@@ -952,6 +952,10 @@ button {
   transform: translateY(2px);
 }
 
+.hud-camera-btn.is-hidden {
+  display: none;
+}
+
 .hud-lives {
   display: flex;
   gap: 0.3rem;
